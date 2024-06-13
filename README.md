@@ -13,4 +13,13 @@ There is a lot if information contained within documents such as PDF's, PPT's, a
 ## Processing Flow
 ![image](https://github.com/liamca/GPT4oContentExtraction/assets/3432973/8db4eee3-6a9a-4cdd-9c7b-07ad8effd419)
 
+## Geting Started
+
+Ensure you have installed requirements.txt
+```code
+pip install -r requirements.txt
+```
+
+Install LibreOffice by executing [install libreoffice.ipynb]()
+
 
