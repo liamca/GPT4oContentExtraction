@@ -7,7 +7,8 @@ There is a lot if information contained within documents such as PDF's, PPT's, a
 
 * Azure OpenAI with GPT 4o enabled
 * Linux (Ubuntu) based Jupyter Notebook
-* (Optional) Azure AI Search - To test the ability to answer questions 
+* (Optional) Azure AI Search - To test the ability to answer questions
+* (Optional) LibreOffice - IF you wish to support file types other than PDF
 
 ## Processing Flow
 ![image](https://github.com/liamca/GPT4oContentExtraction/assets/3432973/8db4eee3-6a9a-4cdd-9c7b-07ad8effd419)
