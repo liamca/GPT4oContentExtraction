@@ -15,14 +15,14 @@ There is a lot if information contained within documents such as PDF's, PPT's, a
 
 ## Geting Started
 
-Ensure you have installed requirements.txt
+1) Ensure you have installed requirements.txt
 ```code
 pip install -r requirements.txt
 ```
 
-Install LibreOffice by installing [libreoffice.ipynb]()
+2) Install LibreOffice by installing [libreoffice.ipynb]()
 
-Configure [confg.json]() with your Azure Service settings
+3) Configure [confg.json]() with your Azure Service settings
 
 
 
