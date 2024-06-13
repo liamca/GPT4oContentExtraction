@@ -1,0 +1,15 @@
+{
+    "search_service_name": "<search service name>",
+    "search_admin_key" : "<search service admin api key>",
+    "search_index_name": "microsoft-results",
+    "search_index_schema_file": "schema.json",
+    "search_api_version" : "2024-05-01-preview",  
+    "openai_embedding_api_base" : "https://<azure openai service>.openai.azure.com/",
+    "openai_embedding_api_key" : "<azure openai api key>",
+    "openai_embedding_api_version" :  "2024-02-15-preview",
+    "openai_embedding_model" : "text-embedding-3-large" ,
+    "openai_gpt_api_base" : "https://<azure openai service>.openai.azure.com/",
+    "openai_gpt_api_key" : "azure openai api key>",
+    "openai_gpt_api_version" :  "2024-02-15-preview",
+    "openai_gpt_model" : "gpt-4o"
+}
