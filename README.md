@@ -20,6 +20,9 @@ Ensure you have installed requirements.txt
 pip install -r requirements.txt
 ```
 
-Install LibreOffice by executing [install libreoffice.ipynb]()
+Install LibreOffice by installing [libreoffice.ipynb]()
+
+Configure [confg.json]() with your Azure Service settings
+
 
 
