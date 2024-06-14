@@ -20,9 +20,17 @@ There is a lot if information contained within documents such as PDF's, PPT's, a
 pip install -r requirements.txt
 ```
 
-2) Install LibreOffice by installing [libreoffice.ipynb]()
+2) Install LibreOffice by running [libreoffice.ipynb](https://github.com/liamca/GPT4oContentExtraction/blob/main/install-libreoffice.ipynb)
+   
+3) Configure [config.json](https://github.com/liamca/GPT4oContentExtraction/blob/main/config.json) with your Azure Service settings
+   
+4) Convert the included sample PPT file by running [convert-doc-to-markdown.ipynb](https://github.com/liamca/GPT4oContentExtraction/blob/main/convert-doc-to-markdown.ipynb). This will convert each page to a set of Markdown files.
 
-3) Configure [confg.json]() with your Azure Service settings
+***(Optional Steps)***
+
+5) Create an Azure AI Search Index to use for RAG based Chat over this content by running [index-to-azure-ai-search.ipynb](https://github.com/liamca/GPT4oContentExtraction/blob/main/index-to-azure-ai-search.ipynb)
+
+6) Perform a test RAG query by running [test-query.ipynb](https://github.com/liamca/GPT4oContentExtraction/blob/main/test-query.ipynb)
 
 
 
