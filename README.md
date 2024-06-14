@@ -45,6 +45,9 @@ pip install -r requirements.txt
 5) Create an Azure AI Search Index to use for RAG based Chat over this content by running [index-to-azure-ai-search.ipynb](https://github.com/liamca/GPT4oContentExtraction/blob/main/index-to-azure-ai-search.ipynb)
 
 6) Perform a test RAG query by running [test-query.ipynb](https://github.com/liamca/GPT4oContentExtraction/blob/main/test-query.ipynb)
+<kbd>
+<img src= "https://github.com/liamca/GPT4oContentExtraction/assets/3432973/39cd41d4-9257-4ec0-869b-29df558e2415" alt="Test Query">
+</kbd>
 
 
 
