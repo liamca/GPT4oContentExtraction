@@ -1,5 +1,5 @@
 # Azure OpenAI GPT-4o Content Extraction
-Using Azure OpenAI GPT 4o to extract information such as text, tables and charts from Documents to Markdown.
+Using Azure OpenAI GPT 4o to extract information such as text, tables and charts from Documents (PDF, DOC, DOCX, PPT, PPTX, XLS, XLSX, etc) to Markdown.
 
 There is a lot if information contained within documents such as PDF's, PPT's, and Excel Spreadsheets beyond just text, such as images, tables and charts. The goal of this repo is to show how Azure OpenAI GPT 4o can be used to extract all of this information into a Markdown file to be used for downstream processes such as RAG (Chat on your Data) or Workflows.
 
