@@ -4,10 +4,15 @@ Using Azure OpenAI GPT 4o to extract information such as text, tables and charts
 There is a lot if information contained within documents such as PDF's, PPT's, and Excel Spreadsheets beyond just text, such as images, tables and charts. The goal of this repo is to show how Azure OpenAI GPT 4o can be used to extract all of this information into a Markdown file to be used for downstream processes such as RAG (Chat on your Data) or Workflows.
 
 Here is an example slide from the included PPT
-![sample_original_slide](https://github.com/liamca/GPT4oContentExtraction/assets/3432973/8b42c1d7-3e3e-457b-b08b-ba8be8d8540e)
+<kbd>
+<img src= "https://github.com/liamca/GPT4oContentExtraction/assets/3432973/8b42c1d7-3e3e-457b-b08b-ba8be8d8540e" alt="Original Slide">
+</kbd>
 
 When converted to Markdown, notice how the charts are converted to Markdown tables which are easily understandable by Azure OpenAI GPT4.
-![sample_output_markdown](https://github.com/liamca/GPT4oContentExtraction/assets/3432973/f7f21e21-150d-4194-a3b3-a1f499ce44b3)
+<kbd>
+<img src= "https://github.com/liamca/GPT4oContentExtraction/assets/3432973/f7f21e21-150d-4194-a3b3-a1f499ce44b3" alt="Output Markdown">
+</kbd>
+
 
 ## Requirements
 
