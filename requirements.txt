@@ -5,3 +5,4 @@ langchain
 tiktoken
 azure-search-documents --pre
 azure-core
+azure-identity
