@@ -3,6 +3,6 @@ openai
 tenacity
 langchain
 tiktoken
-azure-search-documents --pre
+azure-search-documents==11.6.0b4
 azure-core
 azure-identity
