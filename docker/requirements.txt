@@ -1,0 +1,13 @@
+fastapi
+uvicorn
+gunicorn
+jinja2
+python-multipart
+pyOpenSSL  
+PyMuPDF 
+openai 
+tenacity 
+langchain 
+tiktoken
+azure-search-documents --pre
+azure-storage-blob
