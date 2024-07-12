@@ -28,3 +28,4 @@ az containerapp create --resource-group [resourcegroup] --name [name] --ingress 
 --registry-server [registry].azurecr.io  --min-replicas 0 --max-replicas 5
 ```                       
 
+
