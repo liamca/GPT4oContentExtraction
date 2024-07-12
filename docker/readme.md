@@ -26,6 +26,10 @@ az containerapp create --resource-group [resourcegroup] --name [name] --ingress 
 --image [registry].azurecr.io/insight_engine/doc2md --environment [environment name] \
 --cpu 2 --memory 4Gi --registry-username [registry username] --registry-password [registry password] \
 --registry-server [registry].azurecr.io  --min-replicas 0 --max-replicas 5
-```                       
+```
+
+# Sample Noteboook
+[process-document.ipynb](https://github.com/liamca/GPT4oContentExtraction/blob/main/docker/process-document.ipynb)
+
 
 
