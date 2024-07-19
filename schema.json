@@ -1,6 +1,4 @@
 {
-  "@odata.context": "https://liamca-s1-demo.search.windows.net/$metadata#indexes/$entity",
-  "@odata.etag": "\"0x8DC8A40B7F75AC8\"",
   "name": "barclays",
   "defaultScoringProfile": null,
   "fields": [
