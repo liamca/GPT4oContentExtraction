@@ -34,12 +34,17 @@ Upload the container to registry:
 docker push <registry>.azurecr.io/insight_engine/doc2md:v1
 ```
 
-After this, you can create an Azure Container App which leverages this container and use the following example to test the container.
+## How to test the container
+
+IMPORTANT:
+- This container can not process Office documents with Sensitivity levels that are not public / general as it will not be able to access the content.
+- The is_html flag in the below parameters should be set to False unless the URL you will be providing is an HTML page:
+
+After you create the Azure Container App use the following example to test the container.
 [test-process-document.ipynb](https://github.com/liamca/GPT4oContentExtraction/blob/main/docker/test-process-document.ipynb)
 
 Within this notebook, you will need to make changes to the data that is submitted by replacing <redacted> with your service details.
 
-NOTE: The is_html flag should be set to False unless the URL you will be providing is an HTML page:
 
 ```code
 data = {  
