@@ -74,7 +74,7 @@ markdown_splitter_header_1 = MarkdownHeaderTextSplitter(headers_to_split_on=head
 markdown_splitter_header_2 = MarkdownHeaderTextSplitter(headers_to_split_on=header_2_split)
 markdown_splitter_header_3 = MarkdownHeaderTextSplitter(headers_to_split_on=header_3_split)
 
-supported_conversion_types = ['.pptx', '.ppt', '.docx', '.doc', '.xlsx', '.xls']
+supported_conversion_types = ['.pptx', '.ppt', '.docx', '.doc', '.xlsx', '.xls', '.png', 'jpg']
 max_chunk_len = 1024
 
 app = FastAPI()  
@@ -82,7 +82,6 @@ app = FastAPI()
 # Define a Pydantic model for the request body with optional fields  
 class JobRequest(BaseModel):  
     url_file_to_process: str
-    is_html: Optional[bool] = False
     openai_gpt_api_base: str
     openai_gpt_api_key: str
     openai_gpt_api_version: str
@@ -99,6 +98,7 @@ class JobRequest(BaseModel):
     search_admin_key: Optional[str] = None
     search_index_name: Optional[str] = None
     search_api_version: Optional[str] = None
+    is_html: Optional[bool] = False # depracated and no longer userd
 
 
 class JobStatus(BaseModel):  
@@ -128,8 +128,6 @@ def background_task(job_id: str, job_request: JobRequest):
         job_dir = os.path.join('processed', job_id)
         ensure_directory_exists(job_dir)
 
-        job_info = upload_current_status(blob_container_client, job_dir, job_info, "Starting processing...")
-        
         job_info = upload_current_status(blob_container_client, job_dir, job_info, "Downloading file for processing...")
 
         # Download file locally for processing
@@ -147,50 +145,42 @@ def background_task(job_id: str, job_request: JobRequest):
         pdf_dir = os.path.join(job_dir, 'pdf')
         ensure_directory_exists(pdf_dir)
         
-        if job_request.is_html == True:
-            file_path='.html'
-            pdf_path = os.path.join(pdf_dir, download_file_name+'.pdf')  
-            config = pdfkit.configuration(wkhtmltopdf=path_to_wkhtmltopdf) 
-            pdfkit.from_url(job_request.url_file_to_process, pdf_path, options=wkhtmltopdf_options, configuration=config)  
-  
-        else:
+        # Convert the file to PDF if needed
+        file_path = pathlib.Path(download_file_name).suffix.lower()
+        image_dir = os.path.join(job_dir, 'images')
+        ensure_directory_exists(image_dir)
+
+        if file_path in supported_conversion_types:
+            # Convert supported file types to PDF
             download_path = os.path.join(doc_dir, download_file_name)
             file_to_process = download_file(job_request.url_file_to_process, download_path)
             print(f"Downloaded {job_request.url_file_to_process} to {file_to_process}")  
-            
-            job_info = upload_current_status(blob_container_client, job_dir, job_info, "Checking if file needs to be converted to PDF...")
-            # If the file is not a PDF and can be converted - do so
-            file_path = pathlib.Path(file_to_process).suffix.lower()
+            job_info = upload_current_status(blob_container_client, job_dir, job_info, "Converting file to PDF")
+            pdf_path = convert_to_pdf(file_to_process, pdf_dir)
+        elif file_path == '.pdf':
+            # No need to convert, just download
+            download_path = os.path.join(doc_dir, download_file_name)
+            file_to_process = download_file(job_request.url_file_to_process, download_path)
+            print(f"Downloaded {job_request.url_file_to_process} to {file_to_process}")  
+            job_info = upload_current_status(blob_container_client, job_dir, job_info, "No conversion needed for PDF.")
+            print ('No conversion needed for PDF...')
+            shutil.copy(file_to_process, pdf_dir)  
+            pdf_path = os.path.join(pdf_dir, os.path.basename(file_to_process))
+            print("File copied from", file_to_process, 'to', pdf_dir)  
+        else:
+            # HTML page conversion is default for non PDF or supported files
+            file_path='.html'
+            pdf_path = os.path.join(pdf_dir, download_file_name+'.pdf')  
+            config = pdfkit.configuration(wkhtmltopdf=path_to_wkhtmltopdf) 
+            job_info = upload_current_status(blob_container_client, job_dir, job_info, "Converting HTML to PDF")
+            pdfkit.from_url(job_request.url_file_to_process, pdf_path, options=wkhtmltopdf_options, configuration=config)  
 
-            
-            if file_path in supported_conversion_types:
-                print ('Converting file to PDF...')
-                pdf_path = convert_to_pdf(file_to_process, pdf_dir)
-            elif file_path == '.pdf':
-                print ('No conversion needed for PDF...')
-                shutil.copy(file_to_process, pdf_dir)  
-                pdf_path = os.path.join(pdf_dir, os.path.basename(file_to_process))
-                print("File copied from", file_to_process, 'to', pdf_dir)  
-            else:
-                job_info['status'] = "error"
-                print ('Error:', 'File passed is not supported')
-                job_info['message'] = 'File passed is not supported'
-                return job_info
-                
-            if os.path.exists(pdf_path) == False:
-                print ('Error:', 'File was not converted to PDF')
-                job_info['status'] = "error"
-                job_info['message'] = 'File was not converted to PDF'
-                return job_info
-        
 
+        # Extract PDF pages to images
         print ('PDF File to process:', pdf_path)
 
         job_info = upload_current_status(blob_container_client, job_dir, job_info, "Converting PDF pages to images...")
 
-        # Extract PDF pages to images
-        image_dir = os.path.join(job_dir, 'images')
-        ensure_directory_exists(image_dir)
 
         pdf_images_dir = extract_pdf_pages_to_images(pdf_path, image_dir)
         print ('Images saved to:', pdf_images_dir)
@@ -269,7 +259,7 @@ def background_task(job_id: str, job_request: JobRequest):
             json_dir = os.path.join(job_dir, 'json')
             ensure_directory_exists(json_dir)
             
-            if file_path in ['.pptx', '.ppt', '.xlsx', '.xls']:
+            if file_path in ['.pptx', '.ppt', '.xlsx', '.xls', '.png', 'jpg']:
                 # Do page splitter
                 for f in sorted_files:
                     with open(os.path.join(markdown_dir, f), 'r') as f_in:
@@ -568,7 +558,7 @@ def extract_markdown_from_image(gpt_client, openai_gpt_model, image_path, prompt
                         }
                     ] } 
                 ],
-                max_tokens=2048
+                max_tokens=4096
             )
             print ('Received Response')
             # print (response.choices)
@@ -732,8 +722,3 @@ async def job_status(job_status: JobStatus):
     blob_client = blob_service_client.get_blob_client(container=job_status.blob_storage_container, blob=blob_name)  
     job_info = json.loads(blob_client.download_blob().readall())
     return job_info 
-
-#if __name__ == "__main__":  
-#    import uvicorn  
-#    uvicorn.run(app, host="0.0.0.0", port=3100)  
-#    #uvicorn.run(app, host="0.0.0.0", port=3100, ssl_keyfile="key.pem", ssl_certfile="cert.pem")  
