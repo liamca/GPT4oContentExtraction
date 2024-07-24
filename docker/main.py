@@ -2,42 +2,27 @@ from fastapi import FastAPI, BackgroundTasks, HTTPException
 from fastapi.responses import JSONResponse  
 from pydantic import BaseModel  
 from typing import Optional, Dict  
-
-import os
+import os  
 import shutil  
 import re  
-import json
-import time
-import requests
-import concurrent.futures 
-#import uuid 
+import json  
+import time  
+import requests  
+import concurrent.futures  
 import base64  
-
-# For LibreOffice Doc Conversion to PDF
 import subprocess  
-import pathlib
-
-# HTML to PDF conversion
-import pdfkit
-
-# Image extraction from PDF
+import pathlib  
+import pdfkit  
 import fitz  # PyMuPDF  
 from pathlib import Path  
-
-# Image processing via GPT-4o  
-from openai import AzureOpenAI, OpenAIError
-from tenacity import retry, wait_random_exponential, stop_after_attempt 
-import io
-import base64
-# from IPython.display import Markdown, display  
-
-# Upload processed files to Azure Blob Storage
+from openai import AzureOpenAI, OpenAIError  
+from tenacity import retry, wait_random_exponential, stop_after_attempt  
+import io  
 from azure.storage.blob import BlobServiceClient, BlobClient, ContainerClient  
-
-# Markdown splitter
-from langchain.text_splitter import TokenTextSplitter, MarkdownHeaderTextSplitter
+from langchain.text_splitter import TokenTextSplitter, MarkdownHeaderTextSplitter  
 import copy  
-import tiktoken
+import tiktoken  
+
 encoding = tiktoken.encoding_for_model("gpt-3.5-turbo")
 
 #wkhtmltopdf settings
@@ -98,6 +83,7 @@ class JobRequest(BaseModel):
     search_admin_key: Optional[str] = None
     search_index_name: Optional[str] = None
     search_api_version: Optional[str] = None
+    chunk_type: Optional[str] = None
     is_html: Optional[bool] = False # depracated and no longer userd
 
 
@@ -108,298 +94,259 @@ class JobStatus(BaseModel):
     blob_storage_container: str
 
 def background_task(job_id: str, job_request: JobRequest):  
-    try:
-        # Create a job ID and JSON for the job info / status
-        job_info = {"job_id": job_id}
-        job_info['status'] = "in-progress"
-        job_info['message'] = "Initiating job and validating services..."
-        
-        ensure_directory_exists(job_id)
-        
-        # Create connection to Azure Instances
-        connection_string = f"DefaultEndpointsProtocol=https;AccountName={job_request.blob_storage_service_name};AccountKey={job_request.blob_storage_service_api_key};EndpointSuffix=core.windows.net"  
-        blob_service_client = BlobServiceClient.from_connection_string(connection_string)  
-        blob_container_client = blob_service_client.get_container_client(job_request.blob_storage_container)  
-        
-        # Ensure the container for uploading results exits, create if not
-        ensure_container(blob_container_client)
-        
-        ensure_directory_exists('processed')
-        job_dir = os.path.join('processed', job_id)
-        ensure_directory_exists(job_dir)
-
-        job_info = upload_current_status(blob_container_client, job_dir, job_info, "Downloading file for processing...")
-
-        # Download file locally for processing
-        doc_dir = os.path.join(job_dir, 'doc')
-        ensure_directory_exists(doc_dir)
-        
-        # Remove SAS token if it was passed
-        download_file_name = job_request.url_file_to_process
-        if '?' in download_file_name:
-            download_file_name = download_file_name[:download_file_name.find('?')]
-        download_file_name = os.path.basename(download_file_name)
-        
-        print ('File to be processed:', download_file_name)
-        # Ensure the output directory exists  
-        pdf_dir = os.path.join(job_dir, 'pdf')
-        ensure_directory_exists(pdf_dir)
-        
-        # Convert the file to PDF if needed
-        file_path = pathlib.Path(download_file_name).suffix.lower()
-        image_dir = os.path.join(job_dir, 'images')
-        ensure_directory_exists(image_dir)
-
-        if file_path in supported_conversion_types:
-            # Convert supported file types to PDF
-            download_path = os.path.join(doc_dir, download_file_name)
-            file_to_process = download_file(job_request.url_file_to_process, download_path)
-            print(f"Downloaded {job_request.url_file_to_process} to {file_to_process}")  
-            job_info = upload_current_status(blob_container_client, job_dir, job_info, "Converting file to PDF")
-            pdf_path = convert_to_pdf(file_to_process, pdf_dir)
-        elif file_path == '.pdf':
-            # No need to convert, just download
-            download_path = os.path.join(doc_dir, download_file_name)
-            file_to_process = download_file(job_request.url_file_to_process, download_path)
-            print(f"Downloaded {job_request.url_file_to_process} to {file_to_process}")  
-            job_info = upload_current_status(blob_container_client, job_dir, job_info, "No conversion needed for PDF.")
-            print ('No conversion needed for PDF...')
-            shutil.copy(file_to_process, pdf_dir)  
-            pdf_path = os.path.join(pdf_dir, os.path.basename(file_to_process))
-            print("File copied from", file_to_process, 'to', pdf_dir)  
-        else:
-            # HTML page conversion is default for non PDF or supported files
-            file_path='.html'
-            pdf_path = os.path.join(pdf_dir, download_file_name+'.pdf')  
-            config = pdfkit.configuration(wkhtmltopdf=path_to_wkhtmltopdf) 
-            job_info = upload_current_status(blob_container_client, job_dir, job_info, "Converting HTML to PDF")
-            pdfkit.from_url(job_request.url_file_to_process, pdf_path, options=wkhtmltopdf_options, configuration=config)  
-
-
-        # Extract PDF pages to images
-        print ('PDF File to process:', pdf_path)
-
-        job_info = upload_current_status(blob_container_client, job_dir, job_info, "Converting PDF pages to images...")
-
-
-        pdf_images_dir = extract_pdf_pages_to_images(pdf_path, image_dir)
-        print ('Images saved to:', pdf_images_dir)
-        
-        files = get_all_files(pdf_images_dir)  
-        total_files = len(files)
-        print ('Total Image Files to Process:', total_files)
-
-        # Convert the images to markdown using GPT-4o 
-        # Process pages in parallel - adjust worker count as needed
-        job_info = upload_current_status(blob_container_client, job_dir, job_info, "Converting images to Markdown")
-        max_workers = 10
-
-        markdown_dir = os.path.join(job_dir, 'markdown')
-        ensure_directory_exists(markdown_dir)
-
-        # Create a list of tuples containing the arguments to pass to the worker function  
-        tasks = []
-        for file in files: 
-            tasks.append((markdown_dir, job_request.openai_gpt_api_key, job_request.openai_gpt_api_version, job_request.openai_gpt_api_base, job_request.openai_gpt_model, file, job_request.prompt))
-        
+    try:  
+        job_info = initialize_job(job_id, job_request)  
+        blob_service_client, blob_container_client = setup_azure_connections(job_request)  
+        job_dir, doc_dir, pdf_dir, image_dir = setup_directories(job_id)  
           
-        # Using ThreadPoolExecutor with a limit of max_workers threads  
-        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:  
-            # Use a list comprehension to submit tasks to the executor  
-            futures = [executor.submit(process_image, *task) for task in tasks]  
-              
-            # Iterate over the futures as they complete  
-            for future in concurrent.futures.as_completed(futures):  
-                result = future.result()  
-                print(f'Result: {result}')  
-
-        # Get all the markdown files and sort them by page number
-        files = os.listdir(markdown_dir)  
-
-        # Filter out non-txt files
-        txt_files = [f for f in files if f.endswith('.txt')]  
-            
-        # Sort files based on numeric values extracted from filenames  
-        sorted_files = sorted(txt_files, key=extract_numeric_value)  
-
-        total_files = len(sorted_files)
-        print ('Total Markdown Files:', total_files)
-        
-        # Create a single markdown file that includes page numbers a ||pg||
-        merged_markdown = ''
-        for f in sorted_files:
-            with open(os.path.join(markdown_dir, f), 'r') as f_in:
-                pg_number = extract_numeric_value(f)
-                merged_markdown += '\n||' + str(pg_number) + '||\n'
-                merged_markdown += f_in.read() + '\n'
-
-        merged_markdown_dir = os.path.join(job_dir, 'merged_markdown')
-        ensure_directory_exists(merged_markdown_dir)
-                
-        # Save the merged markdown
-        with open(os.path.join(merged_markdown_dir, job_id + '.txt'), 'w') as f_out:
-            f_out.write(merged_markdown)
-
-
-        # If they have passed embedding endpoint, create JSON files that include vectorized markdown
-        # We will look at the file type and depending on the type either split on Markdown headers or do normal chunking
-
-        # Page Splitter == ['.pptx', '.ppt', '.xlsx', '.xls']
-        # Markdown Header == ['.docx', '.doc', '.pdf']
-        
-        openai_embedding_api_base = job_request.openai_embedding_api_base
-        openai_embedding_api_version = job_request.openai_embedding_api_version
-        openai_embedding_api_key = job_request.openai_embedding_api_key
-        openai_embedding_model = job_request.openai_embedding_model
-        documents = []
-
-        if job_request.openai_embedding_api_base != None and job_request.openai_embedding_api_key != None and job_request.openai_embedding_api_version != None and job_request.openai_embedding_model != None:
-            print ('Vectorizing markdown to JSON...')
-            job_info = upload_current_status(blob_container_client, job_dir, job_info, "Vectorizing markdown to JSON")
-            json_dir = os.path.join(job_dir, 'json')
-            ensure_directory_exists(json_dir)
-            
-            if file_path in ['.pptx', '.ppt', '.xlsx', '.xls', '.png', 'jpg']:
-                # Do page splitter
-                for f in sorted_files:
-                    with open(os.path.join(markdown_dir, f), 'r') as f_in:
-                        content = f_in.read()
-                        find_pg = find_page_number(content)
-                        if find_pg != None:
-                            pg_number = find_pg
-                        pg_number = extract_numeric_value(f)
-                        json_data = {}
-                        json_data["doc_id"] = job_id + '-' + str(pg_number)
-                        json_data["chunk_id"] = int(pg_number)
-                        json_data["pg_number"] = int(pg_number)
-                        json_data["file_name"] = download_file_name
-                        json_data["content"] = content
-                        #json_data["title"] = generate_title(json_data['chunk'])
-                        json_data["vector"] = generate_embedding(content, openai_embedding_api_version, openai_embedding_api_base, openai_embedding_api_key, openai_embedding_model)
-                        documents.append(json_data)
-            else:
-                # Do markdown splitter
-                header_1_splits = markdown_splitter_header_1.split_text(merged_markdown)
-                section_counter = 0
-                total_sections = len(header_1_splits)
-                chunk_id = 0
-                pg_number = 1
-                
-                for s1 in header_1_splits:
-                    section_content = s1.page_content
-                    token_count =  len(encoding.encode(section_content))
-                    if token_count > max_chunk_len:
-                        header_2_splits = markdown_splitter_header_2.split_text(section_content)
-                        for s2 in header_2_splits:
-                            sub_section_content = ''
-                            if 'Header 1' in s1.metadata:
-                                sub_section_content += '# ' + s1.metadata['Header 1'] + '\n'
-                            if 'Header 2' in s2.metadata:
-                                sub_section_content += '## ' + s2.metadata['Header 2'] + '\n'
-                            title = sub_section_content
-                                
-                            find_pg = find_page_number(s2.page_content)
-                            if find_pg != None:
-                                pg_number = find_pg
-
-                            # s2_token_count = len(encoding.encode(s2.page_content))
-                            # print ('TOKEN S2 COUNT:', s2_token_count)
-                            sub_section_content +=  s2.page_content
-                            
-                            json_data = {}
-                            json_data["doc_id"] = job_id + '-' + str(chunk_id)
-                            json_data["chunk_id"] = chunk_id
-                            json_data["pg_number"] = int(pg_number)
-                            json_data["file_name"] = download_file_name
-                            json_data["content"] = sub_section_content
-                            json_data["title"] = title
-                            #chunk_content += "Section Title: " + json_data["title"] + "\n"
-                            json_data["vector"] = generate_embedding(sub_section_content, openai_embedding_api_version, openai_embedding_api_base, openai_embedding_api_key, openai_embedding_model)
-                            chunk_id+=1
-                            documents.append(json_data)
-                            
-                            
-                    else:
-                        title = ''
-                        if 'Header 1' in s1.metadata:
-                            title = '# ' + s1.metadata['Header 1']
-                            section_content = '# ' + s1.metadata['Header 1'] + '\n' + section_content
-                        find_pg = find_page_number(section_content)
-                        if find_pg != None:
-                            pg_number = find_pg
-                        json_data = {}
-                        json_data["doc_id"] = job_id + '-' + str(chunk_id)
-                        json_data["chunk_id"] = chunk_id
-                        json_data["pg_number"] = int(pg_number)
-                        json_data["file_name"] = download_file_name
-                        json_data["content"] = section_content
-                        json_data["title"] = title
-                        json_data["vector"] = generate_embedding(section_content, openai_embedding_api_version, openai_embedding_api_base, openai_embedding_api_key, openai_embedding_model)
-                        chunk_id+=1
-                        documents.append(json_data)
-                    print ('==========================================')
-
-            with open(os.path.join(json_dir, job_id + '.json'), 'w') as j_out:
-                j_out.write(json.dumps(documents))  
-
-            # If they passed search service details, index the content
-            # Also check if the search index exists and create if needed (assuming they passed a schema)
-            
-            if job_request.search_service_name != None and job_request.search_admin_key != None and job_request.search_index_name != None and job_request.search_api_version != None:
-                print ('Indexing document to Azure AI Search...')
-                job_info = upload_current_status(blob_container_client, job_dir, job_info, "Indexing document to Azure AI Search")
-
-                search_service_name = job_request.search_service_name
-                search_admin_key = job_request.search_admin_key
-                search_index_name = job_request.search_index_name
-                search_api_version = job_request.search_api_version
-                
-                search_headers = {  
-                    'Content-Type': 'application/json',  
-                    'api-key': search_admin_key  
-                }  
-
-                
-                # Check if index exists
-                print ('Checking if index exists...')
-                exists_url = f'https://{search_service_name}.search.windows.net/indexes/{search_index_name}?api-version={search_api_version}'  
-                response = requests.get(exists_url, headers=search_headers)  
-                  
-                if response.status_code != 200:  
-                    print ('Azure AI Search Index does not exist, please create it.')
-                    job_info['status'] = 'error'
-                    job_info = upload_current_status(blob_container_client, job_dir, job_info, "Azure AI Search Index does not exist, please create it.")
-                    return
-                        
-                # Index the document
-                index_doc_url = f"https://{search_service_name}.search.windows.net/indexes/{search_index_name}/docs/index?api-version={search_api_version}" 
-                response = requests.post(index_doc_url, headers=search_headers, json={"value": documents})  
-                # Check the response  
-                if response.status_code == 200:  
-                    print(f"Documents Indexed successfully.")  
-                else:  
-                    print(f"Error indexing documents {file} :")  
-                    job_info['status'] = 'error'
-                    job_info = upload_current_status(blob_container_client, job_dir, job_info, "Error indexing document to Azure AI Search:" + str(response.json()))
-                    return
-               
-            
-        # Upload files
-        print ('Uploading files to Azure Blob Storage...')
-        job_info = upload_current_status(blob_container_client, job_dir, job_info, "Uploading files to Azure Blob Storage.")
+        job_info, download_file_name = download_and_convert_file(job_request, job_info, blob_container_client, job_dir, doc_dir, pdf_dir)  
+        pdf_images_dir = extract_images_from_pdf(pdf_dir, image_dir, job_info, blob_container_client, job_dir)  
+          
+        markdown_dir = convert_images_to_markdown(pdf_images_dir, job_request, job_info, blob_container_client, job_dir) 
+        job_info = upload_current_status(blob_container_client, job_dir, job_info, "Merging Markdown files.")
+        merged_markdown = merge_markdown_files(markdown_dir, job_dir, job_id)  
+          
+        if should_vectorize(job_request):
+            job_info = upload_current_status(blob_container_client, job_dir, job_info, "Vectorizing content to JSON.")
+            file_type = pathlib.Path(download_file_name).suffix.lower() 
+            documents = vectorize_markdown(merged_markdown, markdown_dir, file_type, job_request, job_info, blob_container_client, job_dir, job_id)  
+            if should_index(job_request):  
+                index_documents(documents, job_request, job_info, blob_container_client, job_dir)  
+          
+        job_info = upload_current_status(blob_container_client, job_dir, job_info, "Uploading content to Blob Storage.")
         upload_files_to_blob_storage(blob_container_client, job_request.blob_storage_container, job_dir)  
+        clean_up(job_dir)  
+          
+        job_info['status'] = 'complete'  
+        upload_current_status(blob_container_client, job_dir, job_info, "Processing complete.")  
+    except Exception as ex:  
+        handle_error(ex, job_info, blob_container_client, job_dir)  
+  
+def initialize_job(job_id: str, job_request: JobRequest) -> Dict:  
+    job_info = {"job_id": job_id, "status": "in-progress", "message": "Initiating job and validating services..."}  
+    ensure_directory_exists(job_id)  
+    return job_info  
+  
+def setup_azure_connections(job_request: JobRequest):  
+    connection_string = f"DefaultEndpointsProtocol=https;AccountName={job_request.blob_storage_service_name};AccountKey={job_request.blob_storage_service_api_key};EndpointSuffix=core.windows.net"  
+    blob_service_client = BlobServiceClient.from_connection_string(connection_string)  
+    blob_container_client = blob_service_client.get_container_client(job_request.blob_storage_container)  
+    ensure_container(blob_container_client)  
+    return blob_service_client, blob_container_client  
+  
+def setup_directories(job_id: str):  
+    ensure_directory_exists('processed')  
+    job_dir = os.path.join('processed', job_id)  
+    ensure_directory_exists(job_dir)  
+    doc_dir = os.path.join(job_dir, 'doc')  
+    ensure_directory_exists(doc_dir)  
+    pdf_dir = os.path.join(job_dir, 'pdf')  
+    ensure_directory_exists(pdf_dir)  
+    image_dir = os.path.join(job_dir, 'images')  
+    ensure_directory_exists(image_dir)  
+    return job_dir, doc_dir, pdf_dir, image_dir  
+  
+def download_and_convert_file(job_request: JobRequest, job_info: Dict, blob_container_client, job_dir: str, doc_dir: str, pdf_dir: str):  
+    job_info = upload_current_status(blob_container_client, job_dir, job_info, "Downloading file for processing...")  
+    download_file_name = job_request.url_file_to_process.split('?')[0]  
+    download_file_name = os.path.basename(download_file_name)  
+    download_path = os.path.join(doc_dir, download_file_name)  
+    file_to_process = download_file(job_request.url_file_to_process, download_path)  
+      
+    if pathlib.Path(download_file_name).suffix.lower() in supported_conversion_types:  
+        job_info = upload_current_status(blob_container_client, job_dir, job_info, "Converting file to PDF")  
+        pdf_path = convert_to_pdf(file_to_process, pdf_dir)  
+    elif download_file_name.endswith('.pdf'):  
+        job_info = upload_current_status(blob_container_client, job_dir, job_info, "No conversion needed for PDF.")  
+        shutil.copy(file_to_process, pdf_dir)  
+        pdf_path = os.path.join(pdf_dir, os.path.basename(file_to_process))  
+    else:  
+        job_info = upload_current_status(blob_container_client, job_dir, job_info, "Converting HTML to PDF")  
+        pdf_path = convert_html_to_pdf(job_request.url_file_to_process, pdf_dir, download_file_name)  
+      
+    return job_info, download_file_name  
+  
+def convert_html_to_pdf(url: str, pdf_dir: str, download_file_name: str) -> str:  
+    pdf_path = os.path.join(pdf_dir, download_file_name + '.pdf')  
+    config = pdfkit.configuration(wkhtmltopdf=path_to_wkhtmltopdf)  
+    pdfkit.from_url(url, pdf_path, options=wkhtmltopdf_options, configuration=config)  
+    return pdf_path  
+  
+def extract_images_from_pdf(pdf_dir: str, image_dir: str, job_info: Dict, blob_container_client, job_dir: str) -> str:  
+    pdf_path = os.path.join(pdf_dir, os.listdir(pdf_dir)[0])  
+    job_info = upload_current_status(blob_container_client, job_dir, job_info, "Converting PDF pages to images...")  
+    pdf_images_dir = extract_pdf_pages_to_images(pdf_path, image_dir)  
+    return pdf_images_dir  
+  
+def convert_images_to_markdown(pdf_images_dir: str, job_request: JobRequest, job_info: Dict, blob_container_client, job_dir: str) -> str:  
+    job_info = upload_current_status(blob_container_client, job_dir, job_info, "Converting images to Markdown")  
+    markdown_dir = os.path.join(job_dir, 'markdown')  
+    ensure_directory_exists(markdown_dir)  
+    files = get_all_files(pdf_images_dir)  
+    tasks = [(markdown_dir, job_request.openai_gpt_api_key, job_request.openai_gpt_api_version, job_request.openai_gpt_api_base, job_request.openai_gpt_model, file, job_request.prompt) for file in files]  
+      
+    with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:  
+        futures = [executor.submit(process_image, *task) for task in tasks]  
+        for future in concurrent.futures.as_completed(futures):  
+            result = future.result()  
+            print(f'Result: {result}')  
+      
+    return markdown_dir  
+  
+def merge_markdown_files(markdown_dir: str, jobs_dir: str, job_id: str) -> str:  
+    print ('Merging markdown files to: ', markdown_dir)
+    files = os.listdir(markdown_dir)  
+    txt_files = [f for f in files if f.endswith('.txt')]  
+    print ('Sorting markdown files...')
+    sorted_files = sorted(txt_files, key=extract_numeric_value)  
 
-        # Clean up local files that were used for processing
-        remove_directory(job_dir)
-        
-        print ('Processing complete.')
-        job_info['status'] = 'complete'
-        job_info = upload_current_status(blob_container_client, job_dir, job_info, "Processing complete.")
+    print ('Creating a merged markdown string...')
+    merged_markdown = ''  
+    for f in sorted_files:  
+        with open(os.path.join(markdown_dir, f), 'r') as f_in:  
+            pg_number = extract_numeric_value(f)  
+            merged_markdown += f'\n||{pg_number}||\n' + f_in.read() + '\n'  
+      
+    merged_markdown_dir = os.path.join(jobs_dir, 'merged_markdown')  
+    ensure_directory_exists(merged_markdown_dir)  
+    print ('Writing merged markdown file...')
+    with open(os.path.join(merged_markdown_dir, job_id + '.txt'), 'w') as f_out:  
+        f_out.write(merged_markdown)  
+      
+    return merged_markdown  
+  
+def should_vectorize(job_request: JobRequest) -> bool:  
+    return all([job_request.openai_embedding_api_base, job_request.openai_embedding_api_key, job_request.openai_embedding_api_version, job_request.openai_embedding_model])  
+  
+def vectorize_markdown(merged_markdown: str, markdown_dir: str, file_type: str, job_request: JobRequest, job_info: Dict, blob_container_client, job_dir: str, job_id: str) -> list:  
+    job_info = upload_current_status(blob_container_client, job_dir, job_info, "Vectorizing markdown to JSON")  
+    print("Vectorizing markdown to JSON...")
+    json_dir = os.path.join(job_dir, 'json')  
+    ensure_directory_exists(json_dir)  
+      
+    documents = []  
+    if file_type in ['.pptx', '.ppt', '.xlsx', '.xls', '.png', 'jpg'] or job_request.chunk_type == "page":  
+        job_info = upload_current_status(blob_container_client, job_dir, job_info, "Vectorizing by Page chunks.")  
+        documents = vectorize_by_page(merged_markdown, markdown_dir, job_request, job_id)  
+    else:  
+        job_info = upload_current_status(blob_container_client, job_dir, job_info, "Vectorizing by Markdown heading chunks.")  
+        documents = vectorize_by_markdown(merged_markdown, job_request, job_id)  
+      
+    job_info = upload_current_status(blob_container_client, job_dir, job_info, "Completed vectorizing chunks.")  
+    print("Saving JSON locally...")
+    with open(os.path.join(json_dir, job_id + '.json'), 'w') as j_out:  
+        j_out.write(json.dumps(documents))  
+      
+    return documents 
 
-    except Exception as ex:
-        print (ex)
-        job_info['status'] = 'error'
-        job_info = upload_current_status(blob_container_client, job_dir, job_info, "Error:" + str(ex))
+def vectorize_by_page(merged_markdown: str, markdown_dir: str, job_request: JobRequest, job_id: str) -> list:  
+    documents = []  
+    print("Vectorizing by Page chunks...")
+    sorted_files = sorted(os.listdir(markdown_dir), key=extract_numeric_value)  
+      
+    for f in sorted_files:  
+        print ('Creating JSON document for: ', os.path.join(markdown_dir, f))
+        with open(os.path.join(markdown_dir, f), 'r') as f_in:  
+            content = f_in.read()  
+            pg_number = find_page_number(content) or extract_numeric_value(f)  
+            json_data = {  
+                "doc_id": f"{job_id}-{pg_number}",  
+                "chunk_id": int(pg_number),  
+                "pg_number": int(pg_number),  
+                "file_name": os.path.basename(job_request.url_file_to_process),  
+                "content": content,  
+                "vector": generate_embedding(content, job_request.openai_embedding_api_version, job_request.openai_embedding_api_base, job_request.openai_embedding_api_key, job_request.openai_embedding_model)  
+            }  
+            documents.append(json_data)  
+      
+    return documents  
+  
+def vectorize_by_markdown(merged_markdown: str, job_request: JobRequest, job_id: str) -> list:  
+    print("Vectorizing by Markdown heading chunks...")
+    documents = []  
+    header_1_splits = markdown_splitter_header_1.split_text(merged_markdown)  
+    chunk_id = 0  
+    pg_number = 1  
+      
+    for s1 in header_1_splits:  
+        section_content = s1.page_content  
+        token_count = len(encoding.encode(section_content))  
+          
+        if token_count > max_chunk_len:  
+            header_2_splits = markdown_splitter_header_2.split_text(section_content)  
+            for s2 in header_2_splits:  
+                sub_section_content = ''  
+                if 'Header 1' in s1.metadata:  
+                    sub_section_content += '# ' + s1.metadata['Header 1'] + '\n'  
+                if 'Header 2' in s2.metadata:  
+                    sub_section_content += '## ' + s2.metadata['Header 2'] + '\n'  
+                title = sub_section_content  
+                  
+                find_pg = find_page_number(s2.page_content)  
+                if find_pg is not None:  
+                    pg_number = find_pg  
+                  
+                sub_section_content += s2.page_content  
+                json_data = {  
+                    "doc_id": f"{job_id}-{chunk_id}",  
+                    "chunk_id": chunk_id,  
+                    "pg_number": int(pg_number),  
+                    "file_name": os.path.basename(job_request.url_file_to_process),  
+                    "content": sub_section_content,  
+                    "title": title,  
+                    "vector": generate_embedding(sub_section_content, job_request.openai_embedding_api_version, job_request.openai_embedding_api_base, job_request.openai_embedding_api_key, job_request.openai_embedding_model)  
+                }  
+                chunk_id += 1  
+                documents.append(json_data)  
+        else:  
+            title = ''  
+            if 'Header 1' in s1.metadata:  
+                title = '# ' + s1.metadata['Header 1']  
+                section_content = '# ' + s1.metadata['Header 1'] + '\n' + section_content  
+              
+            find_pg = find_page_number(section_content)  
+            if find_pg is not None:  
+                pg_number = find_pg  
+              
+            json_data = {  
+                "doc_id": f"{job_id}-{chunk_id}",  
+                "chunk_id": chunk_id,  
+                "pg_number": int(pg_number),  
+                "file_name": os.path.basename(job_request.url_file_to_process),  
+                "content": section_content,  
+                "title": title,  
+                "vector": generate_embedding(section_content, job_request.openai_embedding_api_version, job_request.openai_embedding_api_base, job_request.openai_embedding_api_key, job_request.openai_embedding_model)  
+            }  
+            chunk_id += 1  
+            documents.append(json_data)  
+      
+    return documents  
+    
+  
+def should_index(job_request: JobRequest) -> bool:  
+    return all([job_request.search_service_name, job_request.search_admin_key, job_request.search_index_name, job_request.search_api_version])  
+  
+def index_documents(documents: list, job_request: JobRequest, job_info: Dict, blob_container_client, job_dir: str):  
+    job_info = upload_current_status(blob_container_client, job_dir, job_info, "Indexing document to Azure AI Search")  
+    search_headers = {'Content-Type': 'application/json', 'api-key': job_request.search_admin_key}  
+    exists_url = f'https://{job_request.search_service_name}.search.windows.net/indexes/{job_request.search_index_name}?api-version={job_request.search_api_version}'  
+      
+    response = requests.get(exists_url, headers=search_headers)  
+    if response.status_code != 200:  
+        raise Exception("Azure AI Search Index does not exist, please create it.")  
+      
+    index_doc_url = f"https://{job_request.search_service_name}.search.windows.net/indexes/{job_request.search_index_name}/docs/index?api-version={job_request.search_api_version}"  
+    response = requests.post(index_doc_url, headers=search_headers, json={"value": documents})  
+    if response.status_code != 200:  
+        raise Exception(f"Error indexing documents: {response.json()}")  
+  
+def clean_up(job_dir: str):  
+    remove_directory(job_dir)  
+  
+def handle_error(ex: Exception, job_info: Dict, blob_container_client, job_dir: str):  
+    print(ex)  
+    job_info['status'] = 'error'  
+    upload_current_status(blob_container_client, job_dir, job_info, f"Error: {str(ex)}")  
 
 def encode_base64(input_string):  
     byte_string = input_string.encode('utf-8')  
