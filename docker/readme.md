@@ -38,6 +38,7 @@ docker push <registry>.azurecr.io/insight_engine/doc2md:v1
 
 IMPORTANT:
 - This container can not process Office documents with Sensitivity levels that are not public / general as it will not be able to access the content.
+- You can optionally pass a parameter "chunk_type" to override the chunking that is done. Valid value are "page" and "markdown".
 - The is_html flag in the below parameters should be set to False unless the URL you will be providing is an HTML page:
 
 After you create the Azure Container App use the following example to test the container.
@@ -51,7 +52,6 @@ data = {
     "prompt": """Extract everything you see in this image to markdown. 
                 Convert all charts such as line, pie and bar charts to markdown tables and include a note that the numbers are approximate.
                 """,
-    "is_html": True,
     "openai_gpt_api_base" : "https://[redacted].openai.azure.com/",
     "openai_gpt_api_key" : "[redacted]",
     "openai_gpt_api_version" :  "2024-02-15-preview",
