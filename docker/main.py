@@ -42,7 +42,6 @@ wkhtmltopdf_options = {
 
 
 # Chunking Config
-text_splitter = TokenTextSplitter(chunk_size=512, chunk_overlap=52)  
 header_1_split = [
     ("#", "Header 1"),
 ]
@@ -60,7 +59,8 @@ markdown_splitter_header_2 = MarkdownHeaderTextSplitter(headers_to_split_on=head
 markdown_splitter_header_3 = MarkdownHeaderTextSplitter(headers_to_split_on=header_3_split)
 
 supported_conversion_types = ['.pptx', '.ppt', '.docx', '.doc', '.xlsx', '.xls', '.png', 'jpg']
-max_chunk_len = 1024
+max_chunk_len = 2048
+text_splitter = TokenTextSplitter(chunk_size=max_chunk_len, chunk_overlap=205)
 
 app = FastAPI()  
 
@@ -225,7 +225,17 @@ def vectorize_markdown(merged_markdown: str, markdown_dir: str, file_type: str, 
     ensure_directory_exists(json_dir)  
       
     documents = []  
-    if file_type in ['.pptx', '.ppt', '.xlsx', '.xls', '.png', 'jpg'] or job_request.chunk_type == "page":  
+    
+    #Set the chunking approach - default to Markdown Heading
+    chunk_strategy = "markdown"
+    if job_request.chunk_type == "page":
+        chunk_strategy = "page"
+    elif job_request.chunk_type == "markdown":
+        chunk_strategy = "markdown"
+    elif file_type in ['.pptx', '.ppt', '.xlsx', '.xls', '.png', 'jpg']:  
+        chunk_strategy = "page"
+
+    if chunk_strategy == "page":  
         job_info = upload_current_status(blob_container_client, job_dir, job_info, "Vectorizing by Page chunks.")  
         documents = vectorize_by_page(merged_markdown, markdown_dir, job_request, job_id)  
     else:  
@@ -269,10 +279,12 @@ def vectorize_by_markdown(merged_markdown: str, job_request: JobRequest, job_id:
     pg_number = 1  
       
     for s1 in header_1_splits:  
+        print ('Spltting on headers...')
         section_content = s1.page_content  
         token_count = len(encoding.encode(section_content))  
           
         if token_count > max_chunk_len:  
+            print ('Spltting on sub headers...')
             header_2_splits = markdown_splitter_header_2.split_text(section_content)  
             for s2 in header_2_splits:  
                 sub_section_content = ''  
@@ -287,38 +299,83 @@ def vectorize_by_markdown(merged_markdown: str, job_request: JobRequest, job_id:
                     pg_number = find_pg  
                   
                 sub_section_content += s2.page_content  
+                
+                #If this content is still larger then max chunk size - do text chunking
+                token_count = len(encoding.encode(sub_section_content))  
+                if token_count > max_chunk_len:  
+                    print ('Spltting on Subheadings by chunks...')
+
+                    texts = text_splitter.split_text(s2.page_content)
+                    for t in texts:
+                        text = str(t)
+                        find_pg = find_page_number(text)  
+                        if find_pg is not None:  
+                            pg_number = find_pg  
+                        json_data = {  
+                            "doc_id": f"{job_id}-{chunk_id}",  
+                            "chunk_id": chunk_id,  
+                            "pg_number": int(pg_number),  
+                            "file_name": os.path.basename(job_request.url_file_to_process),  
+                            "content": text,  
+                            "title": title,  
+                            "vector": generate_embedding(str(title + '\n' + text), job_request.openai_embedding_api_version, job_request.openai_embedding_api_base, job_request.openai_embedding_api_key, job_request.openai_embedding_model)  
+                        }  
+                        chunk_id += 1  
+                        documents.append(json_data)  
+                else:
+                    json_data = {  
+                        "doc_id": f"{job_id}-{chunk_id}",  
+                        "chunk_id": chunk_id,  
+                        "pg_number": int(pg_number),  
+                        "file_name": os.path.basename(job_request.url_file_to_process),  
+                        "content": sub_section_content,  
+                        "title": title,  
+                        "vector": generate_embedding(sub_section_content, job_request.openai_embedding_api_version, job_request.openai_embedding_api_base, job_request.openai_embedding_api_key, job_request.openai_embedding_model)  
+                    }  
+                    chunk_id += 1  
+                    documents.append(json_data)  
+        else:  
+            title = ''  
+            if 'Header 1' in s1.metadata:  
+                title = '# ' + s1.metadata['Header 1']  
+              
+            find_pg = find_page_number(section_content)  
+            if find_pg is not None:  
+                pg_number = find_pg  
+                
+            #If this content is larger then max chunk size - do text chunking
+            token_count = len(encoding.encode(title + '\n' + section_content))  
+            if token_count > max_chunk_len:  
+                print ('Spltting on Headings by chunks...')
+                texts = text_splitter.split_text(section_content)
+                for t in texts:
+                    text = str(t)
+                    find_pg = find_page_number(text)  
+                    if find_pg is not None:  
+                        pg_number = find_pg  
+                    json_data = {  
+                        "doc_id": f"{job_id}-{chunk_id}",  
+                        "chunk_id": chunk_id,  
+                        "pg_number": int(pg_number),  
+                        "file_name": os.path.basename(job_request.url_file_to_process),  
+                        "content": text,  
+                        "title": title,  
+                        "vector": generate_embedding(str(title + '\n' + text), job_request.openai_embedding_api_version, job_request.openai_embedding_api_base, job_request.openai_embedding_api_key, job_request.openai_embedding_model)  
+                    }  
+                    chunk_id += 1  
+                    documents.append(json_data)  
+            else:
                 json_data = {  
                     "doc_id": f"{job_id}-{chunk_id}",  
                     "chunk_id": chunk_id,  
                     "pg_number": int(pg_number),  
                     "file_name": os.path.basename(job_request.url_file_to_process),  
-                    "content": sub_section_content,  
+                    "content": section_content,  
                     "title": title,  
-                    "vector": generate_embedding(sub_section_content, job_request.openai_embedding_api_version, job_request.openai_embedding_api_base, job_request.openai_embedding_api_key, job_request.openai_embedding_model)  
+                    "vector": generate_embedding(title + '\n' + section_content, job_request.openai_embedding_api_version, job_request.openai_embedding_api_base, job_request.openai_embedding_api_key, job_request.openai_embedding_model)  
                 }  
                 chunk_id += 1  
                 documents.append(json_data)  
-        else:  
-            title = ''  
-            if 'Header 1' in s1.metadata:  
-                title = '# ' + s1.metadata['Header 1']  
-                section_content = '# ' + s1.metadata['Header 1'] + '\n' + section_content  
-              
-            find_pg = find_page_number(section_content)  
-            if find_pg is not None:  
-                pg_number = find_pg  
-              
-            json_data = {  
-                "doc_id": f"{job_id}-{chunk_id}",  
-                "chunk_id": chunk_id,  
-                "pg_number": int(pg_number),  
-                "file_name": os.path.basename(job_request.url_file_to_process),  
-                "content": section_content,  
-                "title": title,  
-                "vector": generate_embedding(section_content, job_request.openai_embedding_api_version, job_request.openai_embedding_api_base, job_request.openai_embedding_api_key, job_request.openai_embedding_model)  
-            }  
-            chunk_id += 1  
-            documents.append(json_data)  
       
     return documents  
     
@@ -512,9 +569,8 @@ def extract_markdown_from_image(gpt_client, openai_gpt_model, image_path, prompt
             return response.choices[0].message.content
     except OpenAIError as ex:
         # Handlethrottling - code 429
-        print ('API Error Found')
         if str(ex.code) == "429":
-            print ('Waiting to retry after', incremental_backoff, 'seconds...')
+            print ('OpenAI Throttling Error =- Waiting to retry after', incremental_backoff, 'seconds...')
             incremental_backoff = min(max_backoff, incremental_backoff * 1.5)
             counter += 1
             time.sleep(incremental_backoff)
@@ -522,7 +578,10 @@ def extract_markdown_from_image(gpt_client, openai_gpt_model, image_path, prompt
             print ('Conten Filter Error', ex.code)
             return "Content could not be extracted due to Azure OpenAI content filter." + ex.code
         else:
-            print ('API Error:', ex)
+            print ('API Error:', ex, ex.code)
+            incremental_backoff = min(max_backoff, incremental_backoff * 1.5)
+            counter += 1
+            time.sleep(incremental_backoff)
     except Exception as ex:
         counter += 1
         print ('Error - Retry count:', counter, ex)
@@ -619,18 +678,19 @@ def generate_embedding(text, openai_embedding_api_version, openai_embedding_api_
             
         except OpenAIError as ex:
             # Handlethrottling - code 429
-            print ('API Error Found')
             if str(ex.code) == "429":
-                print ('Waiting to retry after', incremental_backoff, 'seconds...')
+                print ('OpenAI Throttling Error =- Waiting to retry after', incremental_backoff, 'seconds...')
                 incremental_backoff = min(max_backoff, incremental_backoff * 1.5)
                 counter += 1
                 time.sleep(incremental_backoff)
             elif str(ex.code) == "content_filter":
                 print ('Conten Filter Error', ex.code)
-                return None
+                return "Content could not be extracted due to Azure OpenAI content filter." + ex.code
             else:
-                print ('API Error - Retry count:', counter, ex.code)
-            counter += 1
+                print ('API Error:', ex, ex.code)
+                incremental_backoff = min(max_backoff, incremental_backoff * 1.5)
+                counter += 1
+                time.sleep(incremental_backoff)
         except Exception as ex:
             counter += 1
             print ('Error - Retry count:', counter, ex)
