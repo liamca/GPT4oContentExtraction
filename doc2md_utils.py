@@ -211,7 +211,7 @@ def process_image(file, markdown_out_dir):
         print(markdown_file_out)
         if os.path.exists(markdown_file_out) == False:
             markdown_text = extract_markdown_from_image(file)
-            with open(markdown_file_out, 'w') as md_out:
+            with open(markdown_file_out, 'w', encoding='utf-8') as md_out:
                 md_out.write(markdown_text)
         else:
             print ('Skipping processed file.')
