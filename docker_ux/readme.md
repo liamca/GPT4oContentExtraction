@@ -5,7 +5,10 @@ This UX works with the docker deployment found [here](https://github.com/liamca/
 ## Requirements:
 - Docker installed and running on local machine
 - Azure (AZ cli)[https://learn.microsoft.com/cli/azure/install-azure-cli]
-- Azure Container registry created and logged in (az acr login -n <your-azure-container-registry>)
+- Azure Container registry created and logged in using:
+```code
+az acr login -n <your-azure-container-registry>
+```
 
 ## Building and Upload 
 ```
