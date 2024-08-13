@@ -9,6 +9,11 @@ This docker container is a fully contained service which receives an API request
 - Optionally vectorize the markdown chunks and store results into an Azure AI Search ready JSON file
 - Optionally index the content into Azure AI Search
 
+## NEW - UX for End to End Document Processing and Chat
+Within the updated container, there is a UX which is accessible from the base URL of the deployed container. Using this UX, you can automatically process content, upload to Azure AI Search and perform Chat.
+
+![image](https://github.com/user-attachments/assets/f4459995-4f02-4a77-98d1-433c10db7c8f)
+
 ## How to build the Container
 
 ```code
