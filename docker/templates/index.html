@@ -1,0 +1,800 @@
+<!DOCTYPE html>  
+<html>  
+<head>  
+    <title>Azure OpenAI - GPT-4o Content Extraction</title>  
+    <link href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">  
+    <style>  
+        body {  
+            font-family: 'Arial', sans-serif;  
+            background-color: #f8f9fa;  
+        }  
+		.nav-tabs {  
+			width: 100%;  
+		}  
+
+        .navbar {  
+            margin-bottom: 20px;  
+        }  
+        .container {  
+            max-width: 1200px;  
+            margin: auto;  
+        }  
+        .modal-fullscreen {  
+            width: 100%;  
+            height: 100%;  
+            margin: 0;  
+            padding: 0;  
+            max-width: none;  
+        }  
+        .modal-body-fullscreen {  
+            display: flex;  
+            align-items: center;  
+            justify-content: center;  
+            height: 100%;  
+            padding: 0;  
+            overflow: hidden; /* Ensure no scrollbars */  
+        }  
+        .modal-body-fullscreen img {  
+            width: 100%;  
+            height: 100%;  
+            object-fit: contain; /* Scale the image to fit within the modal */  
+            transition: transform 0.25s ease; /* Smooth transition for zoom */  
+        }  
+        .footer {  
+            margin-top: 50px;  
+            padding: 20px 0;  
+            background-color: #343a40;  
+            color: white;  
+            text-align: center;  
+        }  
+    </style>  
+</head>  
+<body>  
+  
+    <!-- Navigation Bar -->  
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">  
+        <a class="navbar-brand" href=".">Azure OpenAI - GPT-4o Content Extraction</a>  
+        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">  
+            <span class="navbar-toggler-icon"></span>  
+        </button>  
+    </nav>  
+  
+    <!-- Main Content -->  
+    <div class="container-fluid">    
+        <!-- Navigation Tabs -->  
+        <ul class="nav nav-tabs" id="myTab" role="tablist">  
+            <li class="nav-item">  
+                <a class="nav-link active" id="settings-tab" data-toggle="tab" href="#settings" role="tab" aria-controls="settings" aria-selected="true">Settings</a>  
+            </li>  
+            <li class="nav-item">  
+                <a class="nav-link" id="search-setup-tab" data-toggle="tab" href="#search-setup" role="tab" aria-controls="search-setup" aria-selected="true">AI Search Setup</a>  
+            </li>  
+            <li class="nav-item">  
+                <a class="nav-link" id="submit-job-tab" data-toggle="tab" href="#submit-job" role="tab" aria-controls="submit-job" aria-selected="false">Process Documents</a>  
+            </li>  
+            <li class="nav-item">  
+                <a class="nav-link" id="chat-tab" data-toggle="tab" href="#chat" role="tab" aria-controls="chat" aria-selected="false">Chat on your Data</a>  
+            </li>  
+        </ul>  
+  
+        <div class="tab-content mt-3" id="myTabContent">  
+            <div class="tab-pane fade show active" id="settings" role="tabpanel" aria-labelledby="settings-tab">  
+                <form class="mt-4">  
+                    <h3>Upload Settings File</h3>  
+                    <div class="form-group">  
+                        <label for="file">Settings JSON File:</label>  
+                        <input type="file" id="file" name="file" class="form-control" onchange="uploadSettingsFile(event)" required>  
+                    </div>  
+                    <h3>Job Service URL</h3>  
+                    <div class="form-group">  
+                        <label for="job_service_url">Job Service URL:</label>  
+                        <input type="text" id="job_service_url" name="job_service_url" class="form-control" value="{{ job_service_url }}" required>  
+                    </div>  
+                    <h3>Azure AI Search <button type="button" class="btn btn-secondary btn-sm" onclick="testSearchAPI()">Test</button></h3>  
+                    <div class="form-group">  
+                        <label for="search_service_name">Service Name:</label>  
+                        <input type="text" id="search_service_name" name="search_service_name" class="form-control" value="{{ search_service_name }}">  
+                    </div>  
+                    <div class="form-group">  
+                        <label for="search_index_name">Index Name:</label>  
+                        <input type="text" id="search_index_name" name="search_index_name" class="form-control" value="{{ search_index_name }}">  
+                    </div>  
+                    <div class="form-group">  
+                        <label for="search_admin_key">API Key:</label>  
+                        <input type="password" id="search_admin_key" name="search_admin_key" class="form-control" value="{{ search_admin_key }}">  
+                    </div>  
+                    <div class="form-group">  
+                        <label for="search_api_version">API Version:</label>  
+                        <input type="text" id="search_api_version" name="search_api_version" class="form-control" value="{{ search_api_version }}">  
+                    </div>  
+                    <h3>Azure Blob <button type="button" class="btn btn-secondary btn-sm" onclick="testBlobAPI()">Test</button></h3>  
+                    <div class="form-group">  
+                        <label for="blob_storage_service_name">Azure Account Name:</label>  
+                        <input type="text" id="blob_storage_service_name" name="blob_storage_service_name" class="form-control" value="{{ blob_storage_service_name }}" required>  
+                    </div>  
+                    <div class="form-group">  
+                        <label for="blob_storage_service_api_key">Azure Account Key:</label>  
+                        <input type="password" id="blob_storage_service_api_key" name="blob_storage_service_api_key" class="form-control" value="{{ blob_storage_service_api_key }}" required>  
+                    </div>  
+                    <div class="form-group">  
+                        <label for="blob_storage_container">Container Name:</label>  
+                        <input type="text" id="blob_storage_container" name="blob_storage_container" class="form-control" value="{{ blob_storage_container }}" required>  
+                    </div>  
+                    <div class="form-group">  
+                        <label for="folder">Folder (optional):</label>  
+                        <input type="text" id="folder" name="folder" class="form-control" value="{{ folder }}">  
+                    </div>  
+                    <h3>Azure OpenAI GPT <button type="button" class="btn btn-secondary btn-sm" onclick="testGPTAPI()">Test</button></h3>  
+                    <div class="form-group">  
+                        <label for="openai_gpt_api_base">Endpoint:</label>  
+                        <input type="text" id="openai_gpt_api_base" name="openai_gpt_api_base" class="form-control" value="{{ openai_gpt_api_base }}" required>  
+                    </div>  
+                    <div class="form-group">  
+                        <label for="openai_gpt_api_key">API Key:</label>  
+                        <input type="password" id="openai_gpt_api_key" name="openai_gpt_api_key" class="form-control" value="{{ openai_gpt_api_key }}" required>  
+                    </div>  
+                    <div class="form-group">  
+                        <label for="openai_gpt_api_version">API Version:</label>  
+                        <input type="text" id="openai_gpt_api_version" name="openai_gpt_api_version" class="form-control" value="{{ openai_gpt_api_version }}" required>  
+                    </div>  
+                    <div class="form-group">  
+                        <label for="openai_gpt_model">Model:</label>  
+                        <input type="text" id="openai_gpt_model" name="openai_gpt_model" class="form-control" value="{{ openai_gpt_model }}" required>  
+                    </div>  
+                    <h3>Azure OpenAI Embeddings <button type="button" class="btn btn-secondary btn-sm" onclick="copyGPTValues()">Copy from GPT</button> <button type="button" class="btn btn-secondary btn-sm" onclick="testEmbeddingsAPI()">Test</button></h3>  	
+                    <div class="form-group">  
+                        <label for="openai_embedding_api_base">Endpoint:</label>  
+                        <input type="text" id="openai_embedding_api_base" name="openai_embedding_api_base" class="form-control" value="{{ openai_embedding_api_base }}" required>  
+                    </div>  
+                    <div class="form-group">  
+                        <label for="openai_embedding_api_key">API Key:</label>  
+                        <input type="password" id="openai_embedding_api_key" name="openai_embedding_api_key" class="form-control" value="{{ openai_embedding_api_key }}" required>  
+                    </div>  
+                    <div class="form-group">  
+                        <label for="openai_embedding_api_version">API Version:</label>  
+                        <input type="text" id="openai_embedding_api_version" name="openai_embedding_api_version" class="form-control" value="{{ openai_embedding_api_version }}" required>  
+                    </div>  
+                    <div class="form-group">  
+                        <label for="openai_embedding_model">Model:</label>  
+                        <input type="text" id="openai_embedding_model" name="openai_embedding_model" class="form-control" value="{{ openai_embedding_model }}" required>  
+                    </div>  
+                    <h3>Prompt Override (Optional)</h3>  
+                    <div class="form-group">  
+                        <label for="prompt">Prompt:</label>  
+                        <input type="text" id="prompt" name="prompt" class="form-control" value="{{ prompt }}">  
+                    </div>  
+                </form>  
+            </div>  
+            <div class="tab-pane fade" id="search-setup" role="tabpanel" aria-labelledby="search-setup-tab">  
+                <div>  
+					<form class="mt-4">  
+						<h3>AI Search Index Creation</h3>  
+						<div class="form-group">  
+							<label for="search_index_schema">Create Index from Index Template</label><br>
+							<input type="file" id="fileInput" />  
+							<pre id="jsonOutput"></pre>  
+						</div> 
+					</form>
+                </div>  
+            </div>  
+            <div class="tab-pane fade" id="submit-job" role="tabpanel" aria-labelledby="submit-job-tab">  
+                <div>  
+                    <ul class="nav nav-tabs" id="myTab" role="tablist">  
+                        <li class="nav-item">  
+                            <a class="nav-link" id="documents-tab" data-toggle="tab" href="#documents" role="tab" aria-controls="documents" aria-selected="true">Documents</a>  
+                        </li>  
+                        <li class="nav-item">  
+                            <a class="nav-link" id="urls-tab" data-toggle="tab" href="#urls" role="tab" aria-controls="urls" aria-selected="false">URLs</a>  
+                        </li>  
+                    </ul>  
+                    <div class="tab-content" id="myTabContent">  
+                        <div class="tab-pane fade" id="documents" role="tabpanel" aria-labelledby="documents-tab">  
+                            <form id="uploadFilesForm" enctype="multipart/form-data">  
+                                <input type="hidden" name="job_service_url" value="{{ job_service_url }}">  
+                                <input type="hidden" name="blob_storage_service_name" value="{{ blob_storage_service_name }}">  
+                                <input type="hidden" name="blob_storage_service_api_key" value="{{ blob_storage_service_api_key }}">  
+                                <input type="hidden" name="blob_storage_container" value="{{ blob_storage_container }}">  
+                                <input type="hidden" name="folder" value="{{ folder }}">  
+                                <input type="hidden" name="openai_gpt_api_base" value="{{ openai_gpt_api_base }}">  
+                                <input type="hidden" name="openai_gpt_api_key" value="{{ openai_gpt_api_key }}">  
+                                <input type="hidden" name="openai_gpt_api_version" value="{{ openai_gpt_api_version }}">  
+                                <input type="hidden" name="openai_gpt_model" value="{{ openai_gpt_model }}">  
+                                <input type="hidden" name="openai_embedding_api_base" value="{{ openai_embedding_api_base }}">  
+                                <input type="hidden" name="openai_embedding_api_key" value="{{ openai_embedding_api_key }}">  
+                                <input type="hidden" name="openai_embedding_api_version" value="{{ openai_embedding_api_version }}">  
+                                <input type="hidden" name="openai_embedding_model" value="{{ openai_embedding_model }}">  
+                                <input type="hidden" name="search_service_name" value="{{ search_service_name }}">  
+                                <input type="hidden" name="search_index_name" value="{{ search_index_name }}">  
+                                <input type="hidden" name="search_admin_key" value="{{ search_admin_key }}">  
+                                <input type="hidden" name="search_api_version" value="{{ search_api_version }}">  
+                                <input type="hidden" name="prompt" value="{{ prompt }}">  
+                                <div class="form-group">  
+                                    <label for="files">Choose files to upload:</label>  
+                                    <input type="file" id="files" name="files" class="form-control" multiple required>  
+                                </div>  
+                                <button type="submit" class="btn btn-primary">Upload</button>  
+                            </form>  
+                            <div class="mt-4">  
+                                <div id="fileList" class="mt-3" style="display: none;">  
+                                    <h3>Files Uploaded:</h3>  
+                                    <ul id="fileListItems"></ul>  
+                                    <button class="btn btn-primary mt-3" onclick="processDocuments()">Process Documents</button>  
+                                </div>  
+                            </div>  
+                        </div>  
+                        <div class="tab-pane fade" id="urls" role="tabpanel" aria-labelledby="urls-tab">  
+                            <div class="form-group">  
+                                <label for="chat-input">Choose a URL to process:</label>  
+                                <input type="text" id="url-input" class="form-control" required>  
+                                <br>  
+                                <button type="button" class="btn btn-primary" onclick="processURL()">Process URL</button>  
+                            </div>  
+                        </div>  
+                    </div>  
+                    <div id="process-results" class="mt-3"></div>  
+                </div>  
+            </div>  			
+            <div class="tab-pane fade" id="chat" role="tabpanel" aria-labelledby="chat-tab">  
+                <form onsubmit="sendMessage(event)">  
+                    <div class="form-group">  
+                        <label for="chat-input">Your Message:</label>  
+                        <input type="text" id="chat-input" class="form-control" required>  
+                    </div>  
+                    <div class="d-flex justify-content-between">  
+                        <button type="submit" class="btn btn-primary">Send</button>  
+                        <button type="button" class="btn btn-danger" onclick="clearChat()">Clear</button>  
+                    </div>  
+                    <div id="chat-status" class="mt-3"></div>
+		</form>  
+                <div id="chat-box" class="mt-3"></div>  
+            </div>  
+        </div>  
+    </div>  
+  
+    <!-- Bootstrap Modal -->  
+    <div class="modal fade" id="imageModal" tabindex="-1" role="dialog" aria-labelledby="imageModalLabel" aria-hidden="true">  
+        <div class="modal-dialog modal-fullscreen" role="document">  
+            <div class="modal-content">  
+                <div class="modal-header">  
+                    <h5 class="modal-title" id="imageModalLabel">Image</h5>  
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">  
+                        <span aria-hidden="true">&times;</span>  
+                    </button>  
+                </div>  
+                <div class="modal-body modal-body-fullscreen">  
+                    <img id="modalImage" src="" alt="Image">  
+                </div>  
+            </div>  
+        </div>  
+    </div>  
+    
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>  
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>  
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>  
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>  
+    <script>  
+        // Settings Tab  
+        function uploadSettingsFile(event) {  
+            const fileInput = event.target;  
+            const formData = new FormData();  
+            formData.append('file', fileInput.files[0]);  
+  
+            fetch('/upload-settings-file', {  
+                method: 'POST',  
+                body: formData  
+            }).then(response => response.text())  
+            .then(html => {  
+                document.open();  
+                document.write(html);  
+                document.close();  
+            });  
+        }  
+		
+		// Create Search Index from Template
+        function createIndexFromTemplate(event) {  
+			const searchServiceName = "{{ search_service_name }}";  
+            const searchIndexName = "{{ search_index_name }}";  
+            const searchAdminKey = "{{ search_admin_key }}";  
+            const searchApiVersion = "{{ search_api_version }}";  
+            const fileInput = event.target;  
+            const formData = new FormData();  
+            formData.append('file', fileInput.files[0]);  
+  
+            fetch('/create-index-from-template', {  
+                method: 'POST',  
+                body: formData  
+            }).then(response => response.text())  
+            .then(html => {  
+                document.open();  
+                document.write(html);  
+                document.close();  
+            });  
+        }  
+		
+		function copyGPTValues() {  
+            document.getElementById("openai_embedding_api_base").value = document.getElementById("openai_gpt_api_base").value;  
+            document.getElementById("openai_embedding_api_key").value = document.getElementById("openai_gpt_api_key").value;  
+            document.getElementById("openai_embedding_api_version").value = document.getElementById("openai_gpt_api_version").value;  
+            document.getElementById("openai_embedding_model").value = document.getElementById("openai_gpt_model").value;  
+        }  
+
+		// Test GPT Endpoint
+        function testGPTAPI() {  
+			fetch('/create-answer', {  
+				method: 'POST',  
+				headers: {  
+					'Content-Type': 'application/json'  
+				},  
+				body: JSON.stringify({  
+					openai_gpt_api_base: $("#openai_gpt_api_base").val(),  
+					openai_gpt_api_key: $("#openai_gpt_api_key").val(), 
+					openai_gpt_api_version: $("#openai_gpt_api_version").val(),
+					openai_gpt_model: $("#openai_gpt_model").val(),
+					question: "What is the captital of Canada?",
+					content: "https://www.test.com: Ottawa is the captital of Canada."
+				})  
+			})  
+			.then(response => response.json())  
+			.then(data => {  
+				if (data.status == "success") {
+					alert('Success:' + data.answer)
+				} else {
+					alert('Failed:' + data.message.toString())
+				}
+			})  
+			.catch((error) => {  
+				alert(data.status)
+			}); 
+        }  
+
+    
+		// Test Embeddings Endpoint
+        function testEmbeddingsAPI() {  
+			fetch('/create-embedding', {  
+				method: 'POST',  
+				headers: {  
+					'Content-Type': 'application/json'  
+				},  
+				body: JSON.stringify({  
+					openai_embedding_api_base: $("#openai_embedding_api_base").val(),  
+					openai_embedding_api_key: $("#openai_embedding_api_key").val(), 
+					openai_embedding_api_version: $("#openai_embedding_api_version").val(),
+					openai_embedding_model: $("#openai_embedding_model").val(),
+					text: "The quick brown fox jumped over the lazy dog."  
+				})  
+			})  
+			.then(response => response.json())  
+			.then(data => {  
+				if (data.status == "success") {
+					alert('Success, length of Embeddings is:' + data.embedding.length.toString())
+				} else {
+					alert('Failed:' + data.message.toString())
+				}
+			})  
+			.catch((error) => {  
+				alert(data.status)
+			}); 
+        }  
+
+
+		// Test Blob Endpoint
+        function testBlobAPI() {  
+			fetch('/test-blob', {  
+				method: 'POST',  
+				headers: {  
+					'Content-Type': 'application/json'  
+				},  
+				body: JSON.stringify({  
+					blob_storage_service_name: $("#blob_storage_service_name").val(),  
+					blob_storage_service_api_key: $("#blob_storage_service_api_key").val(), 
+					blob_storage_container: $("#blob_storage_container").val()
+				})  
+			})  
+			.then(response => response.json())  
+			.then(data => {  
+				if (data.status == "success") {
+					alert('Success:' + data.message.toString())
+				} else {
+					alert('Failed:' + data.message.toString())
+				}
+			})  
+			.catch((error) => {  
+				alert(data.status)
+			}); 
+        }  
+
+
+		// Test Search Endpoint
+        function testSearchAPI() {  
+			fetch('/test-search', {  
+				method: 'POST',  
+				headers: {  
+					'Content-Type': 'application/json'  
+				},  
+				body: JSON.stringify({  
+					search_service_name: $("#search_service_name").val(),  
+					search_index_name: $("#search_index_name").val(), 
+					search_admin_key: $("#search_admin_key").val(),
+					search_api_version: $("#search_api_version").val() 
+				})  
+			})  
+			.then(response => response.json())  
+			.then(data => {  
+				if (data.status == "success") {
+					alert('Success:' + data.message)
+				} else {
+					alert('Failed:' + data.message.toString())
+				}
+			})  
+			.catch((error) => {  
+				alert(data.status)
+			}); 
+        }  
+		
+        // Chat app  
+        function clearChat() {  
+            const chatBox = document.getElementById('chat-box');  
+            chatBox.innerHTML = ''; // Clear the chat box content  
+        }  
+  
+        async function sendMessage(event) {  
+            event.preventDefault();  
+			
+	    $("#chat-status").html('Generating response...')
+
+            const userInput = document.getElementById('chat-input').value;  
+            const searchServiceName = "{{ search_service_name }}";  
+            const searchIndexName = "{{ search_index_name }}";  
+            const searchAdminKey = "{{ search_admin_key }}";  
+            const searchApiVersion = "{{ search_api_version }}";  
+  
+            const openaiGPTAPIBase = "{{ openai_gpt_api_base }}";  
+            const openaiGPTAPIKey = "{{ openai_gpt_api_key }}";  
+            const openaiGPTAPIVersion = "{{ openai_gpt_api_version }}";  
+            const openaiGPTAPIModel = "{{ openai_gpt_model }}";  
+  
+            const blobStorageServiceName = "{{ blob_storage_service_name }}";  
+            const blobStorageServiceAPIKey = "{{ blob_storage_service_api_key }}";  
+            const blobStorageContainer = "{{ blob_storage_container }}";  
+            const response = await fetch('/chat', {  
+                method: 'POST',  
+                headers: {  
+                    'Content-Type': 'application/x-www-form-urlencoded'  
+                },  
+                body: new URLSearchParams({  
+                    user_input: userInput,  
+                    search_service_name: searchServiceName,  
+                    search_index_name: searchIndexName,  
+                    search_admin_key: searchAdminKey,  
+                    search_api_version: searchApiVersion,  
+                    openai_gpt_api_base: openaiGPTAPIBase,  
+                    openai_gpt_api_key: openaiGPTAPIKey,  
+                    openai_gpt_api_version: openaiGPTAPIVersion,  
+                    openai_gpt_model: openaiGPTAPIModel,  
+                    blob_storage_service_name: blobStorageServiceName,  
+                    blob_storage_service_api_key: blobStorageServiceAPIKey,  
+                    blob_storage_container: blobStorageContainer  
+                })  
+            });  
+  
+            const data = await response.json();  
+            const chatBox = document.getElementById('chat-box');  
+            const userMessage = document.createElement('div');  
+            userMessage.textContent = `User: ${userInput}`;  
+            chatBox.appendChild(userMessage);  
+  
+            const botMessage = document.createElement('div');  
+            botMessage.innerHTML = marked.parse(data.response);  
+            chatBox.appendChild(botMessage);  
+  
+            // Add click event listener to links  
+            $('#chat-box').on('click', 'a', function(event) {  
+                event.preventDefault(); // Prevent the default link behavior  
+                const href = $(this).attr('href');  
+                console.log(href);  
+                $('#modalImage').attr('src', href);  
+                $('#imageModal').modal('show');  
+            });  
+  
+	    
+            document.getElementById('chat-input').value = '';
+	    $("#chat-status").html('');
+        }  
+  
+        // Submit Job  
+        async function processDocuments() {  
+			sasUrls = [];  
+			$("#fileListItems li").each(function() {  
+				sasUrls.push($(this).text());  
+			});  
+			//console.log("SAS URLs:", sasUrls);  
+			//alert("SAS URLs: " + sasUrls.join(", "));  
+				
+            const settings = {  
+                "blob_storage_service_name": "{{ blob_storage_service_name }}",  
+                "blob_storage_service_api_key": "{{ blob_storage_service_api_key }}",  
+                "blob_storage_container": "{{ blob_storage_container }}",  
+                "folder": "{{ folder }}",  
+                "openai_gpt_api_base": "{{ openai_gpt_api_base }}",  
+                "openai_gpt_api_key": "{{ openai_gpt_api_key }}",  
+                "openai_gpt_api_version": "{{ openai_gpt_api_version }}",  
+                "openai_gpt_model": "{{ openai_gpt_model }}",  
+                "openai_embedding_api_base": "{{ openai_embedding_api_base }}",  
+                "openai_embedding_api_key": "{{ openai_embedding_api_key }}",  
+                "openai_embedding_api_version": "{{ openai_embedding_api_version }}",  
+                "openai_embedding_model": "{{ openai_embedding_model }}",  
+                "search_service_name": "{{ search_service_name }}",  
+                "search_index_name": "{{ search_index_name }}",  
+                "search_admin_key": "{{ search_admin_key }}",  
+                "search_api_version": "{{ search_api_version }}",  
+                "prompt": "{{ prompt }}",  
+                "job_service_url": "{{ job_service_url }}"  
+            };  
+  
+            const resultsDiv = document.getElementById('process-results');  
+            resultsDiv.innerHTML = ''; // Clear previous results  
+  
+            for (const url of sasUrls) {  
+                const documentToProcess = {  
+                    ...settings,  
+                    "url_file_to_process": url  
+                };  
+                console.log(documentToProcess);  
+  
+                // Display the URL being processed  
+                const urlElement = document.createElement('div');  
+                urlElement.textContent = `Processing: ${url}`;  
+                resultsDiv.appendChild(urlElement);  
+  
+                try {  
+                    // Submit job  
+                    const response = await fetch(`${settings.job_service_url}/start-job`, {  
+                        method: 'POST',  
+                        headers: {  
+                            'Content-Type': 'application/json'  
+                        },  
+                        body: JSON.stringify(documentToProcess)  
+                    });  
+  
+                    if (!response.ok) {  
+                        throw new Error('Job submission failed');  
+                    }  
+  
+                    const jobData = await response.json();  
+                    const jobId = jobData.job_id;  
+  
+                    // Check job status  
+                    let status = 'in-progress';  
+                    while (status === 'in-progress') {  
+                        const statusResponse = await fetch(`${settings.job_service_url}/job-status`, {  
+                            method: 'POST',  
+                            headers: {  
+                                'Content-Type': 'application/json'  
+                            },  
+                            body: JSON.stringify({  
+                                job_id: jobId,  
+                                blob_storage_service_name: settings.blob_storage_service_name,  
+                                blob_storage_service_api_key: settings.blob_storage_service_api_key,  
+                                blob_storage_container: settings.blob_storage_container  
+                            })  
+                        });  
+  
+                        if (!statusResponse.ok) {  
+                            throw new Error('Failed to check job status');  
+                        }  
+  
+                        const statusData = await statusResponse.json();  
+                        status = statusData.status;  
+                        const statusElement = document.createElement('div');  
+                        statusElement.textContent = `Status: ${status}, Message: ${statusData.message}`;  
+                        resultsDiv.appendChild(statusElement);  
+  
+                        if (status === 'in-progress') {  
+                            await new Promise(resolve => setTimeout(resolve, 2000)); // Wait for 2 seconds before checking again  
+                        }  
+                    }  
+                } catch (error) {  
+                    const errorElement = document.createElement('div');  
+                    errorElement.textContent = `Error: ${error.message}`;  
+                    resultsDiv.appendChild(errorElement);  
+                }  
+            }  
+        }  
+  
+        async function processURL() {  
+            const settings = {  
+                "blob_storage_service_name": "{{ blob_storage_service_name }}",  
+                "blob_storage_service_api_key": "{{ blob_storage_service_api_key }}",  
+                "blob_storage_container": "{{ blob_storage_container }}",  
+                "folder": "{{ folder }}",  
+                "openai_gpt_api_base": "{{ openai_gpt_api_base }}",  
+                "openai_gpt_api_key": "{{ openai_gpt_api_key }}",  
+                "openai_gpt_api_version": "{{ openai_gpt_api_version }}",  
+                "openai_gpt_model": "{{ openai_gpt_model }}",  
+                "openai_embedding_api_base": "{{ openai_embedding_api_base }}",  
+                "openai_embedding_api_key": "{{ openai_embedding_api_key }}",  
+                "openai_embedding_api_version": "{{ openai_embedding_api_version }}",  
+                "openai_embedding_model": "{{ openai_embedding_model }}",  
+                "search_service_name": "{{ search_service_name }}",  
+                "search_index_name": "{{ search_index_name }}",  
+                "search_admin_key": "{{ search_admin_key }}",  
+                "search_api_version": "{{ search_api_version }}",  
+                "prompt": "{{ prompt }}",  
+                "job_service_url": "{{ job_service_url }}"  
+            };  
+			
+            const resultsDiv = document.getElementById('process-results');  
+            resultsDiv.innerHTML = ''; // Clear previous results  
+  
+			urlDiv = document.getElementById('url-input')
+			url = urlDiv.value
+			
+			console.log('URL:' + url)
+  
+			const documentToProcess = {  
+				...settings,  
+				"url_file_to_process": url  
+			};  
+			console.log(documentToProcess);  
+
+			// Display the URL being processed  
+			const urlElement = document.createElement('div');  
+			urlElement.textContent = `Processing: ${url}`;  
+			resultsDiv.appendChild(urlElement);  
+
+			try {  
+				// Submit job  
+				const response = await fetch(`${settings.job_service_url}/start-job`, {  
+					method: 'POST',  
+					headers: {  
+						'Content-Type': 'application/json'  
+					},  
+					body: JSON.stringify(documentToProcess)  
+				});  
+
+				if (!response.ok) {  
+					throw new Error('Job submission failed');  
+				}  
+
+				const jobData = await response.json();  
+				const jobId = jobData.job_id;  
+
+				// Check job status  
+				let status = 'in-progress';  
+				while (status === 'in-progress') {  
+					const statusResponse = await fetch(`${settings.job_service_url}/job-status`, {  
+						method: 'POST',  
+						headers: {  
+							'Content-Type': 'application/json'  
+						},  
+						body: JSON.stringify({  
+							job_id: jobId,  
+							blob_storage_service_name: $("#blob_storage_service_name").val(),  
+							blob_storage_service_api_key: $("#blob_storage_service_api_key").val(),  
+							blob_storage_container: $("#blob_storage_container").val() 
+						})  
+					});  
+
+					if (!statusResponse.ok) {  
+						throw new Error('Failed to check job status');  
+					}  
+
+					const statusData = await statusResponse.json();  
+					status = statusData.status;  
+					const statusElement = document.createElement('div');  
+					statusElement.textContent = `Status: ${status}, Message: ${statusData.message}`;  
+					resultsDiv.appendChild(statusElement);  
+
+					if (status === 'in-progress') {  
+						await new Promise(resolve => setTimeout(resolve, 2000)); // Wait for 2 seconds before checking again  
+					}  
+				}  
+			} catch (error) {  
+				const errorElement = document.createElement('div');  
+				errorElement.textContent = `Error: ${error.message}`;  
+				resultsDiv.appendChild(errorElement);  
+			}  
+        }  
+		
+		$(document).ready(function() {  
+            $("#uploadFilesForm").submit(function(event) {  
+                event.preventDefault();  
+  
+                const formData = new FormData();  
+                formData.append("blob_storage_service_name", $("#blob_storage_service_name").val());  
+                formData.append("blob_storage_service_api_key", $("#blob_storage_service_api_key").val());  
+                formData.append("blob_storage_container", $("#blob_storage_container").val());  
+
+                const files = $("#files")[0].files;  
+                for (let i = 0; i < files.length; i++) {  
+                    formData.append("files", files[i]);  
+					console.log("Appending file:", files[i].name);  
+                }  
+				
+				// Post to upload_files
+				$.ajax({  
+                    url: "upload_files/",  
+                    type: "POST",  
+                    data: formData,  
+                    processData: false,  
+                    contentType: false,  
+                    success: function(response) {  
+						const fileList = $("#fileList");  
+                        const fileListItems = $("#fileListItems");  
+                        fileListItems.empty(); // Clear any existing items  
+                        response.files.forEach(function(file) {  
+                            fileListItems.append("<li><a href='" + file + "'>" + file + "</a></li>");  
+                        });  
+                        fileList.show(); // Make the div visible  
+                    },  
+                    error: function(xhr, status, error) {  
+                        alert("Error: " + error);  
+                    }  
+                }); 
+			});
+
+			// Add event listener to "Submit Job" tab  
+            $('#submit-job-tab').on('shown.bs.tab', function (e) {  
+                $('#documents-tab').tab('show'); // Activate the "Documents" tab  
+            });  			
+        });
+		
+		
+		document.getElementById('fileInput').addEventListener('change', function(event) {  
+			const file = event.target.files[0];  
+			if (file) {  
+				const reader = new FileReader();  
+				reader.onload = function(e) {  
+					const jsonContent = e.target.result;  
+					try {  
+						const jsonObject = JSON.parse(jsonContent);  
+
+						document.getElementById('jsonOutput').textContent  = 'Creating index:' + $("#search_index_name").val()
+						
+						// Change the value of the "name" entity to "test"  
+						if (jsonObject.hasOwnProperty('name')) {
+							jsonObject.name = $("#search_index_name").val();  
+						}
+						if (jsonObject.hasOwnProperty('vectorSearch') && jsonObject.vectorSearch.hasOwnProperty('vectorizers')) {
+							jsonObject.vectorSearch.vectorizers[0].azureOpenAIParameters.resourceUri = $("#openai_embedding_api_base").val();  
+							jsonObject.vectorSearch.vectorizers[0].azureOpenAIParameters.deploymentId = $("#openai_embedding_model").val();  
+							jsonObject.vectorSearch.vectorizers[0].azureOpenAIParameters.apiKey = $("#openai_gpt_api_key").val();  
+						}
+						
+
+						fetch('/create-index', {  
+							method: 'POST',  
+							headers: {  
+								'Content-Type': 'application/json'  
+							},  
+							body: JSON.stringify({  
+								search_service_name: $("#search_service_name").val(),  
+								search_index_name: $("#search_index_name").val(), 
+								search_admin_key: $("#search_admin_key").val(),
+								search_api_version: $("#search_api_version").val(),
+								index_schema: jsonObject  
+							})  
+						})  
+						.then(response => response.json())  
+						.then(data => {  
+							console.log('Success:', data);  
+							document.getElementById('jsonOutput').textContent  = data.status
+						})  
+						.catch((error) => {  
+							console.error('Error:', error);  
+							document.getElementById('jsonOutput').textContent  = 'Error: ' +  error
+						});  
+						
+
+					} catch (error) {  
+						document.getElementById('jsonOutput').textContent = "Invalid JSON file.";  
+					}  
+				};  
+				reader.readAsText(file);  
+			}  
+		});  
+		  
+    </script>  
+</body>  
+</html>  
+
