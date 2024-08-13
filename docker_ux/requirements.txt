@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+gunicorn
+jinja2
+python-multipart
+openai 
+tenacity 
+langchain 
+tiktoken
+azure-storage-blob

@@ -1,0 +1,20 @@
+{  
+    "azure_account_name": "your-azure-account-name",  
+    "azure_account_key": "your-azure-account-key",  
+    "container_name": "your-container-name",  
+    "folder": "your-folder-name",  
+    "gpt_endpoint": "your-gpt-endpoint",  
+    "gpt_api_key": "your-gpt-api-key",  
+    "gpt_deployment_name": "your-gpt-deployment-name",  
+    "gpt_model_version": "your-gpt-model-version",  
+    "embeddings_endpoint": "your-embeddings-endpoint",  
+    "embeddings_api_key": "your-embeddings-api-key",  
+    "embeddings_deployment_name": "your-embeddings-deployment-name",  
+    "embeddings_model_version": "your-embeddings-model-version",  
+    "search_service_name": "your-search-service-name",  
+    "search_index_name": "your-search-index-name",  
+    "search_api_key": "your-search-api-key",  
+    "search_api_version": "2024-05-01-preview",  
+    "prompt": "Extract everything you see in this image to markdown. Convert all charts such as line, pie and bar charts to markdown tables and include a note that the numbers are approximate."  
+}  
+
