@@ -55,7 +55,7 @@ text_splitter = TokenTextSplitter(chunk_size=max_chunk_len, chunk_overlap=205)
   
 app = FastAPI()  
 templates = Jinja2Templates(directory="templates")  
-max_tokens = 4096  
+max_tokens = 2048
 openai_temperature = 0.1  
   
 # Define Pydantic models  
