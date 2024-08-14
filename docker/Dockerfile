@@ -23,6 +23,7 @@ COPY main.py .
 
 RUN mkdir -p templates
 COPY templates/index.html templates/index.html
+COPY templates/style.css templates/style.css
 
 # Make port available
 EXPOSE 3100  
