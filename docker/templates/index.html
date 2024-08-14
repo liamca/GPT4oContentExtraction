@@ -518,6 +518,10 @@
   
                     const jobData = await response.json();  
                     const jobId = jobData.job_id;  
+
+ 		    const urlElement = document.createElement('div');  
+		    urlElement.textContent = `Job ID: ${jobId}`;  
+		    resultsDiv.appendChild(urlElement);  
   
                     // Check job status  
                     let status = 'in-progress';  
@@ -614,6 +618,10 @@
 
 				const jobData = await response.json();  
 				const jobId = jobData.job_id;  
+
+	 		        const urlElement = document.createElement('div');  
+			        urlElement.textContent = `Job ID: ${jobId}`;  
+			        resultsDiv.appendChild(urlElement);  
 
 				// Check job status  
 				let status = 'in-progress';  
