@@ -115,7 +115,15 @@ def find_page_number(text):
         return int(matches[-1])  
     else:  
         return None  
-  
+      
+def find_all_page_numbers(text):  
+    pattern = r'\|\|(\d+)\|\|'  
+    matches = re.findall(pattern, text)  
+    if matches:  
+        return matches  
+    else:  
+        return []  
+      
 def download_file(url, local_filename):  
     response = requests.get(url, stream=True)  
     with open(local_filename, 'wb') as file:  
@@ -703,11 +711,10 @@ def generate_answer(question, content, openai_gpt_api_base, openai_gpt_api_key, 
     Use 'you' to refer to the individual asking the questions even if they ask with 'I'.  
     Sometimes the answer may be in a table.  
     Focus the response on the intent of the users question. For example, if they ask "Who is", aim to respond with information about "Who" as opposed to "How to".  
-    Each source has a URL to an image followed by a colon and the actual information.  
-    Use markdown format to display the image inline with the response using Markdown format.  
-    For every fact, always include a reference to the source of that fact, even if you used the source to infer the fact.  
-    Aim to be succinct, but include any relevant information you find in the content such as special rules, legalities, restrictions or other relevant notes.  
-    Only answer the question using the source information below.  
+    Each source has an array of URL's to images followed by a colon and the actual information.  
+    Use markdown format to display all the images linked to the content you used to answer the question inline with the response using Markdown format.  
+    For every fact, always include a reference to the sources images of that fact, even if you used the source to infer the fact.  
+    Only answer the question using the source information provided.  
     Do not make up an answer.  
     """  
     user_prompt = question + "\nSources:\n" + content  
@@ -826,10 +833,14 @@ async def chat(user_input: str = Form(...),
                     permission=BlobSasPermissions(read=True),  
                     expiry=datetime.utcnow() + timedelta(hours=1)  
                 )  
-                sas_url = f"https://{blob_storage_service_name}.blob.core.windows.net/{blob_storage_container}/{blob_name}?{sas_token}"  
-                print('SAS URL:', sas_url)  
+                pg_numbers = find_all_page_numbers(result['content'])
+                sas_urls = []
+                for pg in pg_numbers:
+                    sas_url = f"https://{blob_storage_service_name}.blob.core.windows.net/{blob_storage_container}/{blob_name}?{sas_token}"  
+                    print('SAS URL:', sas_url)  
+                    sas_urls.append(sas_url)
   
-                search_result += sas_url + ': ' + result['content'] + '\n\n'  
+                search_result += str(sas_urls) + ': ' + result['content'] + '\n\n'  
             print('SEARCH RESULTS:', search_result)  
             answer = generate_answer(user_input, search_result, openai_gpt_api_base, openai_gpt_api_key, openai_gpt_api_version, openai_gpt_model)  
             print('ANSWER:', answer)  
