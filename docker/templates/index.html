@@ -433,16 +433,16 @@
 	  
 		const data = await response.json();  
 		const chatBox = document.getElementById('chat-box');  
-	  
-		const userMessage = document.createElement('div');  
-		userMessage.textContent = `User: ${userInput}`;  
-		userMessage.classList.add('border', 'p-2', 'mb-2', 'bg-light'); // Add Bootstrap classes for styling  
-		chatBox.appendChild(userMessage);  
-	  
+	    
 		const botMessage = document.createElement('div');  
 		botMessage.innerHTML = marked.parse(data.response);  
 		botMessage.classList.add('border', 'p-2', 'mb-2', 'bg-white'); // Add Bootstrap classes for styling  
-		chatBox.appendChild(botMessage);  
+		chatBox.insertBefore(botMessage, chatBox.firstChild);  
+
+		const userMessage = document.createElement('div');  
+		userMessage.textContent = `User: ${userInput}`;  
+		userMessage.classList.add('border', 'p-2', 'mb-2', 'bg-light'); // Add Bootstrap classes for styling  
+		chatBox.insertBefore(userMessage, chatBox.firstChild);  
 	  
 		// Add click event listener to links  
 		$('#chat-box').on('click', 'a', function(event) {  
