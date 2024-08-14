@@ -393,69 +393,69 @@
             chatBox.innerHTML = ''; // Clear the chat box content  
         }  
   
-        async function sendMessage(event) {  
-            event.preventDefault();  
-			
-	    $("#chat-status").html('Generating response...')
-
-            const userInput = document.getElementById('chat-input').value;  
-            const searchServiceName = "{{ search_service_name }}";  
-            const searchIndexName = "{{ search_index_name }}";  
-            const searchAdminKey = "{{ search_admin_key }}";  
-            const searchApiVersion = "{{ search_api_version }}";  
-  
-            const openaiGPTAPIBase = "{{ openai_gpt_api_base }}";  
-            const openaiGPTAPIKey = "{{ openai_gpt_api_key }}";  
-            const openaiGPTAPIVersion = "{{ openai_gpt_api_version }}";  
-            const openaiGPTAPIModel = "{{ openai_gpt_model }}";  
-  
-            const blobStorageServiceName = "{{ blob_storage_service_name }}";  
-            const blobStorageServiceAPIKey = "{{ blob_storage_service_api_key }}";  
-            const blobStorageContainer = "{{ blob_storage_container }}";  
-            const response = await fetch('/chat', {  
-                method: 'POST',  
-                headers: {  
-                    'Content-Type': 'application/x-www-form-urlencoded'  
-                },  
-                body: new URLSearchParams({  
-                    user_input: userInput,  
-                    search_service_name: searchServiceName,  
-                    search_index_name: searchIndexName,  
-                    search_admin_key: searchAdminKey,  
-                    search_api_version: searchApiVersion,  
-                    openai_gpt_api_base: openaiGPTAPIBase,  
-                    openai_gpt_api_key: openaiGPTAPIKey,  
-                    openai_gpt_api_version: openaiGPTAPIVersion,  
-                    openai_gpt_model: openaiGPTAPIModel,  
-                    blob_storage_service_name: blobStorageServiceName,  
-                    blob_storage_service_api_key: blobStorageServiceAPIKey,  
-                    blob_storage_container: blobStorageContainer  
-                })  
-            });  
-  
-            const data = await response.json();  
-            const chatBox = document.getElementById('chat-box');  
-            const userMessage = document.createElement('div');  
-            userMessage.textContent = `User: ${userInput}`;  
-            chatBox.appendChild(userMessage);  
-  
-            const botMessage = document.createElement('div');  
-            botMessage.innerHTML = marked.parse(data.response);  
-            chatBox.appendChild(botMessage);  
-  
-            // Add click event listener to links  
-            $('#chat-box').on('click', 'a', function(event) {  
-                event.preventDefault(); // Prevent the default link behavior  
-                const href = $(this).attr('href');  
-                console.log(href);  
-                $('#modalImage').attr('src', href);  
-                $('#imageModal').modal('show');  
-            });  
-  
-	    
-            document.getElementById('chat-input').value = '';
-	    $("#chat-status").html('');
-        }  
+	async function sendMessage(event) {  
+		event.preventDefault();  
+		$("#chat-status").html('Generating response...');  
+		const userInput = document.getElementById('chat-input').value;  
+		const searchServiceName = "{{ search_service_name }}";  
+		const searchIndexName = "{{ search_index_name }}";  
+		const searchAdminKey = "{{ search_admin_key }}";  
+		const searchApiVersion = "{{ search_api_version }}";  
+	  
+		const openaiGPTAPIBase = "{{ openai_gpt_api_base }}";  
+		const openaiGPTAPIKey = "{{ openai_gpt_api_key }}";  
+		const openaiGPTAPIVersion = "{{ openai_gpt_api_version }}";  
+		const openaiGPTAPIModel = "{{ openai_gpt_model }}";  
+	  
+		const blobStorageServiceName = "{{ blob_storage_service_name }}";  
+		const blobStorageServiceAPIKey = "{{ blob_storage_service_api_key }}";  
+		const blobStorageContainer = "{{ blob_storage_container }}";  
+		const response = await fetch('/chat', {  
+			method: 'POST',  
+			headers: {  
+				'Content-Type': 'application/x-www-form-urlencoded'  
+			},  
+			body: new URLSearchParams({  
+				user_input: userInput,  
+				search_service_name: searchServiceName,  
+				search_index_name: searchIndexName,  
+				search_admin_key: searchAdminKey,  
+				search_api_version: searchApiVersion,  
+				openai_gpt_api_base: openaiGPTAPIBase,  
+				openai_gpt_api_key: openaiGPTAPIKey,  
+				openai_gpt_api_version: openaiGPTAPIVersion,  
+				openai_gpt_model: openaiGPTAPIModel,  
+				blob_storage_service_name: blobStorageServiceName,  
+				blob_storage_service_api_key: blobStorageServiceAPIKey,  
+				blob_storage_container: blobStorageContainer  
+			})  
+		});  
+	  
+		const data = await response.json();  
+		const chatBox = document.getElementById('chat-box');  
+	  
+		const userMessage = document.createElement('div');  
+		userMessage.textContent = `User: ${userInput}`;  
+		userMessage.classList.add('border', 'p-2', 'mb-2', 'bg-light'); // Add Bootstrap classes for styling  
+		chatBox.appendChild(userMessage);  
+	  
+		const botMessage = document.createElement('div');  
+		botMessage.innerHTML = marked.parse(data.response);  
+		botMessage.classList.add('border', 'p-2', 'mb-2', 'bg-white'); // Add Bootstrap classes for styling  
+		chatBox.appendChild(botMessage);  
+	  
+		// Add click event listener to links  
+		$('#chat-box').on('click', 'a', function(event) {  
+			event.preventDefault(); // Prevent the default link behavior  
+			const href = $(this).attr('href');  
+			console.log(href);  
+			$('#modalImage').attr('src', href);  
+			$('#imageModal').modal('show');  
+		});  
+	  
+		document.getElementById('chat-input').value = '';  
+		$("#chat-status").html('');  
+	}  
   
         // Submit Job  
         async function processDocuments() {  
