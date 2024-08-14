@@ -85,11 +85,6 @@
                         <label for="file">Settings JSON File:</label>  
                         <input type="file" id="file" name="file" class="form-control" onchange="uploadSettingsFile(event)" required>  
                     </div>  
-                    <h3>Job Service URL</h3>  
-                    <div class="form-group">  
-                        <label for="job_service_url">Job Service URL:</label>  
-                        <input type="text" id="job_service_url" name="job_service_url" class="form-control" value="{{ job_service_url }}" required>  
-                    </div>  
                     <h3>Azure AI Search <button type="button" class="btn btn-secondary btn-sm" onclick="testSearchAPI()">Test</button></h3>  
                     <div class="form-group">  
                         <label for="search_service_name">Service Name:</label>  
@@ -158,11 +153,16 @@
                         <label for="openai_embedding_model">Model:</label>  
                         <input type="text" id="openai_embedding_model" name="openai_embedding_model" class="form-control" value="{{ openai_embedding_model }}" required>  
                     </div>  
-                    <h3>Prompt Override (Optional)</h3>  
+                    <h3>Optional Overrides</h3>  
                     <div class="form-group">  
                         <label for="prompt">Prompt:</label>  
                         <input type="text" id="prompt" name="prompt" class="form-control" value="{{ prompt }}">  
                     </div>  
+                    <div class="form-group">  
+                        <label for="job_service_url">Job Service URL:</label>  
+                        <input type="text" id="job_service_url" name="job_service_url" class="form-control" value="{{ job_service_url }}" required>  
+                    </div>  
+
                 </form>  
             </div>  
             <div class="tab-pane fade" id="search-setup" role="tabpanel" aria-labelledby="search-setup-tab">  
