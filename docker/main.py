@@ -118,11 +118,16 @@ def find_page_number(text):
       
 def find_all_page_numbers(text):  
     pattern = r'\|\|(\d+)\|\|'  
-    matches = re.findall(pattern, text)  
+    matches = re.findall(pattern, text)
+	page_numbers = []
     if matches:  
-        return matches  
+		if int(matches[0]) > 1:
+			page_numbers.append(int(matches[0])-2)
+		for m in matches:
+			page_numbers.append(int(m)-1)
+        return page_numbers  
     else:  
-        return []  
+        return [0]  
       
 def download_file(url, local_filename):  
     response = requests.get(url, stream=True)  
