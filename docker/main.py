@@ -10,7 +10,6 @@ import concurrent.futures
 from datetime import datetime, timedelta  
 from pathlib import Path  
 from typing import Optional, Dict, List  
-  
 import httpx  
 import requests  
 import pdfkit  
@@ -22,9 +21,12 @@ from pydantic import BaseModel
 from azure.storage.blob import BlobServiceClient, BlobClient, ContainerClient, generate_blob_sas, BlobSasPermissions  
 from azure.core.exceptions import ResourceNotFoundError, HttpResponseError  
 from openai import AzureOpenAI, OpenAIError  
-from langchain.text_splitter import TokenTextSplitter, MarkdownHeaderTextSplitter  
+from langchain.text_splitter import TokenTextSplitter, MarkdownHeaderTextSplitter, RecursiveCharacterTextSplitter  
 import tiktoken  
-  
+
+
+
+# Initialize the tokenizer  
 encoding = tiktoken.encoding_for_model("gpt-3.5-turbo")  
   
 # wkhtmltopdf settings  
@@ -42,7 +44,24 @@ wkhtmltopdf_options = {
     'no-stop-slow-scripts': True  # Allow long-running scripts  
 }  
   
-# Chunking Config  
+# Chunking Config 
+text_chunk_size = 8192
+text_chunk_overlap = 820
+
+headers_to_split_on = [
+    ("#", "Header 1"),
+    ("##", "Header 2"),
+]
+
+# MD splits
+markdown_splitter = MarkdownHeaderTextSplitter(
+    headers_to_split_on=headers_to_split_on, strip_headers=False
+)
+
+text_splitter = RecursiveCharacterTextSplitter(
+    chunk_size=text_chunk_size, chunk_overlap=text_chunk_overlap
+)
+
 header_1_split = [("#", "Header 1")]  
 header_2_split = [("#", "Header 1"), ("##", "Header 2")]  
 header_3_split = [("#", "Header 1"), ("##", "Header 2"), ("###", "Header 3")]  
@@ -50,8 +69,8 @@ markdown_splitter_header_1 = MarkdownHeaderTextSplitter(headers_to_split_on=head
 markdown_splitter_header_2 = MarkdownHeaderTextSplitter(headers_to_split_on=header_2_split)  
 markdown_splitter_header_3 = MarkdownHeaderTextSplitter(headers_to_split_on=header_3_split)  
 supported_conversion_types = ['.pptx', '.ppt', '.docx', '.doc', '.xlsx', '.xls', '.png', 'jpg']  
-max_chunk_len = 2048  
-text_splitter = TokenTextSplitter(chunk_size=max_chunk_len, chunk_overlap=205)  
+# max_chunk_len = 2048  
+# text_splitter = TokenTextSplitter(chunk_size=max_chunk_len, chunk_overlap=205)  
   
 app = FastAPI()  
 templates = Jinja2Templates(directory="templates")  
@@ -108,6 +127,24 @@ def decode_base64(encoded_string):
 def construct_connection_string(account_name: str, account_key: str) -> str:
     return f"DefaultEndpointsProtocol=https;AccountName={account_name};AccountKey={account_key};EndpointSuffix=core.windows.net"
 
+def find_first_page_number(text):  
+    pattern = r'\|\|(\d+)\|\|'  
+    matches = re.findall(pattern, text)  
+    if matches:  
+        return int(matches[0])  
+    else:  
+        return None 
+
+def find_last_heading_level_1(markdown_text):  
+    lines = markdown_text.split('\n')  
+    last_heading = None  
+      
+    for line in lines:  
+        if line.startswith('# '):  
+            last_heading = line  
+      
+    return last_heading  
+  
 def find_page_number(text):  
     pattern = r'\|\|(\d+)\|\|'  
     matches = re.findall(pattern, text)  
@@ -459,8 +496,47 @@ def vectorize_by_page(merged_markdown: str, markdown_dir: str, job_request: JobR
             documents.append(json_data)  
   
     return documents  
-  
+
 def vectorize_by_markdown(merged_markdown: str, job_request: JobRequest, job_id: str) -> list:  
+    print("Vectorizing by Markdown heading chunks...")  
+    documents = []  
+    md_header_splits = markdown_splitter.split_text(merged_markdown)
+    # Char-level splits
+    splits = text_splitter.split_documents(md_header_splits)
+    chunk_id = 0  
+    pg_number = 1  
+    
+    last_heading = ''
+    
+    for s in splits:
+        # Add the page number to start of chunk 
+        text = s.page_content
+        
+        get_pg_number  = find_first_page_number(text) 
+        if text.find('||') != 0:
+            if get_pg_number != None:
+                pg_number = get_pg_number
+            text = '||' + str(pg_number-1) + '||\n' + find_heading + '\n' + text
+        
+        json_data = {  
+            "doc_id": f"{job_id}-{chunk_id}",  
+            "chunk_id": chunk_id,  
+            "file_name": os.path.basename(job_request.url_file_to_process),  
+            "content": text,  
+            "title": last_heading,  
+            "vector": generate_embedding(str(text), job_request.openai_embedding_api_version, job_request.openai_embedding_api_base, job_request.openai_embedding_api_key, job_request.openai_embedding_model)  
+        }  
+        chunk_id += 1  
+        documents.append(json_data) 
+
+        
+        find_heading = find_last_heading_level_1(text)  
+        if find_heading != None:
+            last_heading = find_heading
+
+    return documents  
+    
+def vectorize_by_markdown_old(merged_markdown: str, job_request: JobRequest, job_id: str) -> list:  
     print("Vectorizing by Markdown heading chunks...")  
     documents = []  
     header_1_splits = markdown_splitter_header_1.split_text(merged_markdown)  
@@ -1105,4 +1181,3 @@ async def test_search(request: Request):
     except Exception as e:  
         print(f"An error occurred: {e}")  
         return {"status": "fail", "message": f"An error occurred: {e}"}  
-
