@@ -903,22 +903,21 @@ async def chat(user_input: str = Form(...),
         if "value" in result and len(result["value"]) > 0:  
             search_result = ''  
             for result in result["value"]:  
-                base_url, chunk_id
-  
-                print('Blob Name:', blob_name)  
-                sas_token = generate_blob_sas(  
-                    account_name=blob_storage_service_name,  
-                    container_name=blob_storage_container,  
-                    blob_name=blob_name,  
-                    account_key=blob_storage_service_api_key,  
-                    permission=BlobSasPermissions(read=True),  
-                    expiry=datetime.utcnow() + timedelta(hours=1)  
-                )  
+                base_url, chunk_id, pg_number = parse_doc_id(result['doc_id'] + '-0')  
                 pg_numbers = find_all_page_numbers(result['content'])
                 sas_urls = []
                 for pg in pg_numbers:
                     base_url, chunk_id, pg_number = parse_doc_id(result['doc_id'] + '-' + str(pg))  
                     blob_name = f'processed/{base_url}/images/{pg}.png'  
+                    print('Blob Name:', blob_name)  
+                    sas_token = generate_blob_sas(  
+                        account_name=blob_storage_service_name,  
+                        container_name=blob_storage_container,  
+                        blob_name=blob_name,  
+                        account_key=blob_storage_service_api_key,  
+                        permission=BlobSasPermissions(read=True),  
+                        expiry=datetime.utcnow() + timedelta(hours=1)  
+                    )  
                     sas_url = f"https://{blob_storage_service_name}.blob.core.windows.net/{blob_storage_container}/{blob_name}?{sas_token}"  
                     print('SAS URL:', sas_url)  
                     sas_urls.append(sas_url)
