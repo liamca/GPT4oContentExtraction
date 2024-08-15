@@ -793,9 +793,9 @@ def generate_answer(question, content, openai_gpt_api_base, openai_gpt_api_key, 
     Use 'you' to refer to the individual asking the questions even if they ask with 'I'.  
     Sometimes the answer may be in a table.  
     Focus the response on the intent of the users question. For example, if they ask "Who is", aim to respond with information about "Who" as opposed to "How to".  
-    Each source has an array of URL's to images followed by a colon and the actual information.  
-    Use markdown format to display all the images linked to the content you used to answer the question inline with the response using Markdown format.  
-    For every fact, always include a reference to the sources images of that fact, even if you used the source to infer the fact.  
+    Each source has an array of URL's to images followed by a colon and then the source information.  
+    At the end of your response use markdown format to display links to the source images for each source you used to answer the question.
+    If there were multiple image URL's provided, include all of them.
     Only answer the question using the source information provided.  
     Do not make up an answer.  
     """  
