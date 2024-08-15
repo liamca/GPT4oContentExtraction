@@ -254,43 +254,54 @@
         }  
 		
         // Create Search Index  
-	async function createIndex() {  
-		const searchServiceName = "{{ search_service_name }}";  
-		const searchIndexName = "{{ search_index_name }}";  
-		const searchAdminKey = "{{ search_admin_key }}";  
-		const searchApiVersion = "{{ search_api_version }}";  
-	  
-		const fileUrl = "https://liamcastorage.blob.core.windows.net/demofiles/schema_template.json?sv=2023-01-03&st=2024-08-15T21%3A31%3A13Z&se=2034-08-16T21%3A31%3A00Z&sr=b&sp=r&sig=gdIzuUGhYB8sGS39jfXWtKtXgZhfjc0TkeHMSqCwjEE%3D";  
-	  
-		try {  
-			// Fetch the file from the URL  
-			const response = await fetch(fileUrl);  
-	  
-			if (!response.ok) {  
-				throw new Error('Network response was not ok ' + response.statusText);  
-			}  
-	  
-			// Convert the response to a Blob  
-			const blob = await response.blob();  
-	  
-			// Create a new File object  
-			const file = new File([blob], "schema_template.json", { type: blob.type });  
-	  
-			// Append the file to FormData  
-			const formData = new FormData();  
-			formData.append('file', file);  
-	  
-			// Post the FormData to the server  
-			const postResponse = await fetch('/create-index-from-template', {  
-				method: 'POST',  
-				body: formData  
-			});  
-	  
-			const html = await postResponse.text();  
-			$("#jsonOutput").html(html);
-		} catch (error) {  
-			console.error('There was a problem with the fetch operation:', error);  
-		}  
+try {  
+						const jsonObject = JSON.parse(jsonContent);  
+
+						document.getElementById('jsonOutput').textContent  = 'Creating index:' + $("#search_index_name").val()
+						
+						// Change the value of the "name" entity to "test"  
+						if (jsonObject.hasOwnProperty('name')) {
+							jsonObject.name = $("#search_index_name").val();  
+						}
+						if (jsonObject.hasOwnProperty('vectorSearch') && jsonObject.vectorSearch.hasOwnProperty('vectorizers')) {
+							jsonObject.vectorSearch.vectorizers[0].azureOpenAIParameters.resourceUri = $("#openai_embedding_api_base").val();  
+							jsonObject.vectorSearch.vectorizers[0].azureOpenAIParameters.deploymentId = $("#openai_embedding_model").val();  
+							jsonObject.vectorSearch.vectorizers[0].azureOpenAIParameters.apiKey = $("#openai_gpt_api_key").val();  
+						}
+						
+
+	    
+	function createIndex() {  
+	try {  
+		fetch('/create-index', {  
+			method: 'POST',  
+			headers: {  
+				'Content-Type': 'application/json'  
+			},  
+			body: JSON.stringify({  
+				search_service_name: $("#search_service_name").val(),  
+				search_index_name: $("#search_index_name").val(), 
+				search_admin_key: $("#search_admin_key").val(),
+				search_api_version: $("#search_api_version").val(),
+				index_schema: "template"  
+			})  
+		})  
+		.then(response => response.json())  
+		.then(data => {  
+			console.log('Success:', data);  
+			document.getElementById('jsonOutput').textContent  = data.status
+		})  
+		.catch((error) => {  
+			console.error('Error:', error);  
+			document.getElementById('jsonOutput').textContent  = 'Error: ' +  error
+		});  
+		
+	
+	} catch (error) {  
+		document.getElementById('jsonOutput').textContent = "Invalid JSON file.";  
+	}  
+
+
 	}  
     
         function createIndexFromTemplate(event) {  
