@@ -124,12 +124,19 @@
             <div class="tab-pane fade" id="search-setup" role="tabpanel" aria-labelledby="search-setup-tab">  
                 <div>  
 					<form class="mt-4">  
-						<h3>AI Search Index Creation</h3>  
-						<div class="form-group">  
-							<label for="search_index_schema">Create Index from Index Template</label><br>
-							<input type="file" id="fileInput" />  
+						<div class="row">  
+							<div class="col-2 border p-3">
+								Create Index with Defaults:<br>
+								<button type="button" class="btn btn-secondary btn-sm" onclick="createIndex()">Create Index</button>
+							</div>  
+							<div class="col-2 border p-3">
+								Create Index from File:<br>
+								<input type="file" id="fileInput" />
+							</div>  
+						</div>  
+						<div class="row">  
 							<pre id="jsonOutput"></pre>  
-						</div> 
+						</div>  
 					</form>
                 </div>  
             </div>  
@@ -246,7 +253,46 @@
             });  
         }  
 		
-		// Create Search Index from Template
+        // Create Search Index  
+	async function createIndex() {  
+		const searchServiceName = "{{ search_service_name }}";  
+		const searchIndexName = "{{ search_index_name }}";  
+		const searchAdminKey = "{{ search_admin_key }}";  
+		const searchApiVersion = "{{ search_api_version }}";  
+	  
+		const fileUrl = "https://liamcastorage.blob.core.windows.net/demofiles/schema_template.json?sv=2023-01-03&st=2024-08-15T21%3A31%3A13Z&se=2034-08-16T21%3A31%3A00Z&sr=b&sp=r&sig=gdIzuUGhYB8sGS39jfXWtKtXgZhfjc0TkeHMSqCwjEE%3D";  
+	  
+		try {  
+			// Fetch the file from the URL  
+			const response = await fetch(fileUrl);  
+	  
+			if (!response.ok) {  
+				throw new Error('Network response was not ok ' + response.statusText);  
+			}  
+	  
+			// Convert the response to a Blob  
+			const blob = await response.blob();  
+	  
+			// Create a new File object  
+			const file = new File([blob], "schema_template.json", { type: blob.type });  
+	  
+			// Append the file to FormData  
+			const formData = new FormData();  
+			formData.append('file', file);  
+	  
+			// Post the FormData to the server  
+			const postResponse = await fetch('/create-index-from-template', {  
+				method: 'POST',  
+				body: formData  
+			});  
+	  
+			const html = await postResponse.text();  
+			$("#jsonOutput").html(html);
+		} catch (error) {  
+			console.error('There was a problem with the fetch operation:', error);  
+		}  
+	}  
+    
         function createIndexFromTemplate(event) {  
 			const searchServiceName = "{{ search_service_name }}";  
             const searchIndexName = "{{ search_index_name }}";  
