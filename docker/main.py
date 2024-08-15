@@ -903,9 +903,8 @@ async def chat(user_input: str = Form(...),
         if "value" in result and len(result["value"]) > 0:  
             search_result = ''  
             for result in result["value"]:  
-                base_url, chunk_id, pg_number = parse_doc_id(result['doc_id'] + '-' + str(result['pg_number']))  
+                base_url, chunk_id
   
-                blob_name = f'processed/{base_url}/images/{pg_number}.png'  
                 print('Blob Name:', blob_name)  
                 sas_token = generate_blob_sas(  
                     account_name=blob_storage_service_name,  
@@ -918,6 +917,8 @@ async def chat(user_input: str = Form(...),
                 pg_numbers = find_all_page_numbers(result['content'])
                 sas_urls = []
                 for pg in pg_numbers:
+                    base_url, chunk_id, pg_number = parse_doc_id(result['doc_id'] + '-' + str(pg))  
+                    blob_name = f'processed/{base_url}/images/{pg}.png'  
                     sas_url = f"https://{blob_storage_service_name}.blob.core.windows.net/{blob_storage_container}/{blob_name}?{sas_token}"  
                     print('SAS URL:', sas_url)  
                     sas_urls.append(sas_url)
