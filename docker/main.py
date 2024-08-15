@@ -884,7 +884,7 @@ async def upload_settings_file(request: Request, file: UploadFile = File(...)):
         "job_service_url": settings.get("job_service_url", ""),  
         "sas_urls": None  
     })  
-  
+
 @app.post("/create-index")  
 async def create_index(request: Request):  
     data = await request.json()  
@@ -893,6 +893,10 @@ async def create_index(request: Request):
     search_admin_key = data.get("search_admin_key")  
     search_api_version = data.get("search_api_version")  
     index_schema = data.get("index_schema")  
+
+    if index_schema == "template":
+        index_schema = index_schema_template
+        index_schema["name"] = search_index_name
   
     search_service_url = "https://{}.search.windows.net/".format(search_service_name)  
     search_headers = {  
@@ -1072,3 +1076,215 @@ async def test_search(request: Request):
     except Exception as e:  
         print(f"An error occurred: {e}")  
         return {"status": "fail", "message": f"An error occurred: {e}"}  
+
+index_schema_template = {
+  "name": "<redacted>",
+  "defaultScoringProfile": null,
+  "fields": [
+    {
+      "name": "doc_id",
+      "type": "Edm.String",
+      "searchable": false,
+      "filterable": true,
+      "retrievable": true,
+      "stored": true,
+      "sortable": true,
+      "facetable": false,
+      "key": true,
+      "indexAnalyzer": null,
+      "searchAnalyzer": null,
+      "analyzer": null,
+      "normalizer": null,
+      "dimensions": null,
+      "vectorSearchProfile": null,
+      "vectorEncoding": null,
+      "synonymMaps": []
+    },
+    {
+      "name": "chunk_id",
+      "type": "Edm.Int32",
+      "searchable": false,
+      "filterable": true,
+      "retrievable": true,
+      "stored": true,
+      "sortable": true,
+      "facetable": false,
+      "key": false,
+      "indexAnalyzer": null,
+      "searchAnalyzer": null,
+      "analyzer": null,
+      "normalizer": null,
+      "dimensions": null,
+      "vectorSearchProfile": null,
+      "vectorEncoding": null,
+      "synonymMaps": []
+    },{
+      "name": "pg_number",
+      "type": "Edm.Int32",
+      "searchable": false,
+      "filterable": true,
+      "retrievable": true,
+      "stored": true,
+      "sortable": true,
+      "facetable": false,
+      "key": false,
+      "indexAnalyzer": null,
+      "searchAnalyzer": null,
+      "analyzer": null,
+      "normalizer": null,
+      "dimensions": null,
+      "vectorSearchProfile": null,
+      "vectorEncoding": null,
+      "synonymMaps": []
+    },
+    {
+      "name": "file_name",
+      "type": "Edm.String",
+      "searchable": true,
+      "filterable": true,
+      "retrievable": true,
+      "stored": true,
+      "sortable": false,
+      "facetable": false,
+      "key": false,
+      "indexAnalyzer": null,
+      "searchAnalyzer": null,
+      "analyzer": null,
+      "normalizer": null,
+      "dimensions": null,
+      "vectorSearchProfile": null,
+      "vectorEncoding": null,
+      "synonymMaps": []
+    },
+    {
+      "name": "title",
+      "type": "Edm.String",
+      "searchable": true,
+      "filterable": false,
+      "retrievable": true,
+      "stored": true,
+      "sortable": false,
+      "facetable": false,
+      "key": false,
+      "indexAnalyzer": null,
+      "searchAnalyzer": null,
+      "analyzer": "en.microsoft",
+      "normalizer": null,
+      "dimensions": null,
+      "vectorSearchProfile": null,
+      "vectorEncoding": null,
+      "synonymMaps": []
+    },
+    {
+      "name": "content",
+      "type": "Edm.String",
+      "searchable": true,
+      "filterable": false,
+      "retrievable": true,
+      "stored": true,
+      "sortable": false,
+      "facetable": false,
+      "key": false,
+      "indexAnalyzer": null,
+      "searchAnalyzer": null,
+      "analyzer": "en.microsoft",
+      "normalizer": null,
+      "dimensions": null,
+      "vectorSearchProfile": null,
+      "vectorEncoding": null,
+      "synonymMaps": []
+    },
+    {
+      "name": "vector",
+      "type": "Collection(Edm.Single)",
+      "searchable": true,
+      "filterable": false,
+      "retrievable": true,
+      "stored": true,
+      "sortable": false,
+      "facetable": false,
+      "key": false,
+      "indexAnalyzer": null,
+      "searchAnalyzer": null,
+      "analyzer": null,
+      "normalizer": null,
+      "dimensions": 1536,
+      "vectorSearchProfile": "vector-profile",
+      "vectorEncoding": null,
+      "synonymMaps": []
+    }
+  ],
+  "scoringProfiles": [],
+  "corsOptions": null,
+  "suggesters": [],
+  "analyzers": [],
+  "normalizers": [],
+  "tokenizers": [],
+  "tokenFilters": [],
+  "charFilters": [],
+  "encryptionKey": null,
+  "similarity": {
+    "@odata.type": "#Microsoft.Azure.Search.BM25Similarity",
+    "k1": null,
+    "b": null
+  },
+  "semantic": {
+    "defaultConfiguration": "vector-semantic-configuration",
+    "configurations": [
+      {
+        "name": "vector-semantic-configuration",
+        "prioritizedFields": {
+          "titleField": {
+            "fieldName": "title"
+          },
+          "prioritizedContentFields": [
+            {
+              "fieldName": "content"
+            }
+          ],
+          "prioritizedKeywordsFields": []
+        }
+      }
+    ]
+  },
+  "vectorSearch": {
+    "algorithms": [
+      {
+        "name": "vector-algorithm",
+        "kind": "hnsw",
+        "hnswParameters": {
+          "metric": "cosine",
+          "m": 4,
+          "efConstruction": 400,
+          "efSearch": 500
+        },
+        "exhaustiveKnnParameters": null
+      }
+    ],
+    "profiles": [
+      {
+        "name": "vector-profile",
+        "algorithm": "vector-algorithm",
+        "vectorizer": "vector-vectorizer",
+        "compression": null
+      }
+    ],
+    "vectorizers": [
+      {
+        "name": "vector-vectorizer",
+        "kind": "azureOpenAI",
+        "azureOpenAIParameters": {
+          "resourceUri": "<redacted>",
+          "deploymentId": "<redacted>",
+          "apiKey": "<redacted>",
+          "modelName": "experimental",
+          "authIdentity": null
+        },
+        "customWebApiParameters": null,
+        "aiServicesVisionParameters": null,
+        "amlParameters": null
+      }
+    ],
+    "compressions": []
+  }
+}
