@@ -254,23 +254,6 @@
         }  
 		
         // Create Search Index  
-try {  
-						const jsonObject = JSON.parse(jsonContent);  
-
-						document.getElementById('jsonOutput').textContent  = 'Creating index:' + $("#search_index_name").val()
-						
-						// Change the value of the "name" entity to "test"  
-						if (jsonObject.hasOwnProperty('name')) {
-							jsonObject.name = $("#search_index_name").val();  
-						}
-						if (jsonObject.hasOwnProperty('vectorSearch') && jsonObject.vectorSearch.hasOwnProperty('vectorizers')) {
-							jsonObject.vectorSearch.vectorizers[0].azureOpenAIParameters.resourceUri = $("#openai_embedding_api_base").val();  
-							jsonObject.vectorSearch.vectorizers[0].azureOpenAIParameters.deploymentId = $("#openai_embedding_model").val();  
-							jsonObject.vectorSearch.vectorizers[0].azureOpenAIParameters.apiKey = $("#openai_gpt_api_key").val();  
-						}
-						
-
-	    
 	function createIndex() {  
 	try {  
 		fetch('/create-index', {  
