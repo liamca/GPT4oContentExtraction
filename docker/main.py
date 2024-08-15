@@ -516,7 +516,7 @@ def vectorize_by_markdown(merged_markdown: str, job_request: JobRequest, job_id:
         if text.find('||') != 0:
             if get_pg_number != None:
                 pg_number = get_pg_number
-            text = '||' + str(pg_number-1) + '||\n' + find_heading + '\n' + text
+        text = '||' + str(pg_number-1) + '||\n' + last_heading + '\n' + text
         
         json_data = {  
             "doc_id": f"{job_id}-{chunk_id}",  
@@ -536,110 +536,110 @@ def vectorize_by_markdown(merged_markdown: str, job_request: JobRequest, job_id:
 
     return documents  
     
-def vectorize_by_markdown_old(merged_markdown: str, job_request: JobRequest, job_id: str) -> list:  
-    print("Vectorizing by Markdown heading chunks...")  
-    documents = []  
-    header_1_splits = markdown_splitter_header_1.split_text(merged_markdown)  
-    chunk_id = 0  
-    pg_number = 1  
+# def vectorize_by_markdown_old(merged_markdown: str, job_request: JobRequest, job_id: str) -> list:  
+#     print("Vectorizing by Markdown heading chunks...")  
+#     documents = []  
+#     header_1_splits = markdown_splitter_header_1.split_text(merged_markdown)  
+#     chunk_id = 0  
+#     pg_number = 1  
   
-    for s1 in header_1_splits:  
-        print('Splitting on headers...')  
-        section_content = s1.page_content  
-        token_count = len(encoding.encode(section_content))  
+#     for s1 in header_1_splits:  
+#         print('Splitting on headers...')  
+#         section_content = s1.page_content  
+#         token_count = len(encoding.encode(section_content))  
   
-        if token_count > max_chunk_len:  
-            print('Splitting on sub headers...')  
-            header_2_splits = markdown_splitter_header_2.split_text(section_content)  
-            for s2 in header_2_splits:  
-                sub_section_content = ''  
-                if 'Header 1' in s1.metadata:  
-                    sub_section_content += '# ' + s1.metadata['Header 1'] + '\n'  
-                if 'Header 2' in s2.metadata:  
-                    sub_section_content += '## ' + s2.metadata['Header 2'] + '\n'  
-                title = sub_section_content  
+#         if token_count > max_chunk_len:  
+#             print('Splitting on sub headers...')  
+#             header_2_splits = markdown_splitter_header_2.split_text(section_content)  
+#             for s2 in header_2_splits:  
+#                 sub_section_content = ''  
+#                 if 'Header 1' in s1.metadata:  
+#                     sub_section_content += '# ' + s1.metadata['Header 1'] + '\n'  
+#                 if 'Header 2' in s2.metadata:  
+#                     sub_section_content += '## ' + s2.metadata['Header 2'] + '\n'  
+#                 title = sub_section_content  
   
-                find_pg = find_page_number(s2.page_content)  
-                if find_pg is not None:  
-                    pg_number = find_pg  
+#                 find_pg = find_page_number(s2.page_content)  
+#                 if find_pg is not None:  
+#                     pg_number = find_pg  
   
-                sub_section_content += s2.page_content  
-                token_count = len(encoding.encode(sub_section_content))  
+#                 sub_section_content += s2.page_content  
+#                 token_count = len(encoding.encode(sub_section_content))  
   
-                if token_count > max_chunk_len:  
-                    print('Splitting on Subheadings by chunks...')  
-                    texts = text_splitter.split_text(s2.page_content)  
-                    for t in texts:  
-                        text = str(t)  
-                        find_pg = find_page_number(text)  
-                        if find_pg is not None:  
-                            pg_number = find_pg  
-                        json_data = {  
-                            "doc_id": f"{job_id}-{chunk_id}",  
-                            "chunk_id": chunk_id,  
-                            "pg_number": int(pg_number),  
-                            "file_name": os.path.basename(job_request.url_file_to_process),  
-                            "content": text,  
-                            "title": title,  
-                            "vector": generate_embedding(str(title + '\n' + text), job_request.openai_embedding_api_version, job_request.openai_embedding_api_base, job_request.openai_embedding_api_key, job_request.openai_embedding_model)  
-                        }  
-                        chunk_id += 1  
-                        documents.append(json_data)  
-                else:  
-                    json_data = {  
-                        "doc_id": f"{job_id}-{chunk_id}",  
-                        "chunk_id": chunk_id,  
-                        "pg_number": int(pg_number),  
-                        "file_name": os.path.basename(job_request.url_file_to_process),  
-                        "content": sub_section_content,  
-                        "title": title,  
-                        "vector": generate_embedding(sub_section_content, job_request.openai_embedding_api_version, job_request.openai_embedding_api_base, job_request.openai_embedding_api_key, job_request.openai_embedding_model)  
-                    }  
-                    chunk_id += 1  
-                    documents.append(json_data)  
-        else:  
-            title = ''  
-            if 'Header 1' in s1.metadata:  
-                title = '# ' + s1.metadata['Header 1']  
+#                 if token_count > max_chunk_len:  
+#                     print('Splitting on Subheadings by chunks...')  
+#                     texts = text_splitter.split_text(s2.page_content)  
+#                     for t in texts:  
+#                         text = str(t)  
+#                         find_pg = find_page_number(text)  
+#                         if find_pg is not None:  
+#                             pg_number = find_pg  
+#                         json_data = {  
+#                             "doc_id": f"{job_id}-{chunk_id}",  
+#                             "chunk_id": chunk_id,  
+#                             "pg_number": int(pg_number),  
+#                             "file_name": os.path.basename(job_request.url_file_to_process),  
+#                             "content": text,  
+#                             "title": title,  
+#                             "vector": generate_embedding(str(title + '\n' + text), job_request.openai_embedding_api_version, job_request.openai_embedding_api_base, job_request.openai_embedding_api_key, job_request.openai_embedding_model)  
+#                         }  
+#                         chunk_id += 1  
+#                         documents.append(json_data)  
+#                 else:  
+#                     json_data = {  
+#                         "doc_id": f"{job_id}-{chunk_id}",  
+#                         "chunk_id": chunk_id,  
+#                         "pg_number": int(pg_number),  
+#                         "file_name": os.path.basename(job_request.url_file_to_process),  
+#                         "content": sub_section_content,  
+#                         "title": title,  
+#                         "vector": generate_embedding(sub_section_content, job_request.openai_embedding_api_version, job_request.openai_embedding_api_base, job_request.openai_embedding_api_key, job_request.openai_embedding_model)  
+#                     }  
+#                     chunk_id += 1  
+#                     documents.append(json_data)  
+#         else:  
+#             title = ''  
+#             if 'Header 1' in s1.metadata:  
+#                 title = '# ' + s1.metadata['Header 1']  
   
-            find_pg = find_page_number(section_content)  
-            if find_pg is not None:  
-                pg_number = find_pg  
+#             find_pg = find_page_number(section_content)  
+#             if find_pg is not None:  
+#                 pg_number = find_pg  
   
-            token_count = len(encoding.encode(title + '\n' + section_content))  
-            if token_count > max_chunk_len:  
-                print('Splitting on Headings by chunks...')  
-                texts = text_splitter.split_text(section_content)  
-                for t in texts:  
-                    text = str(t)  
-                    find_pg = find_page_number(text)  
-                    if find_pg is not None:  
-                        pg_number = find_pg  
-                    json_data = {  
-                        "doc_id": f"{job_id}-{chunk_id}",  
-                        "chunk_id": chunk_id,  
-                        "pg_number": int(pg_number),  
-                        "file_name": os.path.basename(job_request.url_file_to_process),  
-                        "content": text,  
-                        "title": title,  
-                        "vector": generate_embedding(str(title + '\n' + text), job_request.openai_embedding_api_version, job_request.openai_embedding_api_base, job_request.openai_embedding_api_key, job_request.openai_embedding_model)  
-                    }  
-                    chunk_id += 1  
-                    documents.append(json_data)  
-            else:  
-                json_data = {  
-                    "doc_id": f"{job_id}-{chunk_id}",  
-                    "chunk_id": chunk_id,  
-                    "pg_number": int(pg_number),  
-                    "file_name": os.path.basename(job_request.url_file_to_process),  
-                    "content": section_content,  
-                    "title": title,  
-                    "vector": generate_embedding(title + '\n' + section_content, job_request.openai_embedding_api_version, job_request.openai_embedding_api_base, job_request.openai_embedding_api_key, job_request.openai_embedding_model)  
-                }  
-                chunk_id += 1  
-                documents.append(json_data)  
+#             token_count = len(encoding.encode(title + '\n' + section_content))  
+#             if token_count > max_chunk_len:  
+#                 print('Splitting on Headings by chunks...')  
+#                 texts = text_splitter.split_text(section_content)  
+#                 for t in texts:  
+#                     text = str(t)  
+#                     find_pg = find_page_number(text)  
+#                     if find_pg is not None:  
+#                         pg_number = find_pg  
+#                     json_data = {  
+#                         "doc_id": f"{job_id}-{chunk_id}",  
+#                         "chunk_id": chunk_id,  
+#                         "pg_number": int(pg_number),  
+#                         "file_name": os.path.basename(job_request.url_file_to_process),  
+#                         "content": text,  
+#                         "title": title,  
+#                         "vector": generate_embedding(str(title + '\n' + text), job_request.openai_embedding_api_version, job_request.openai_embedding_api_base, job_request.openai_embedding_api_key, job_request.openai_embedding_model)  
+#                     }  
+#                     chunk_id += 1  
+#                     documents.append(json_data)  
+#             else:  
+#                 json_data = {  
+#                     "doc_id": f"{job_id}-{chunk_id}",  
+#                     "chunk_id": chunk_id,  
+#                     "pg_number": int(pg_number),  
+#                     "file_name": os.path.basename(job_request.url_file_to_process),  
+#                     "content": section_content,  
+#                     "title": title,  
+#                     "vector": generate_embedding(title + '\n' + section_content, job_request.openai_embedding_api_version, job_request.openai_embedding_api_base, job_request.openai_embedding_api_key, job_request.openai_embedding_model)  
+#                 }  
+#                 chunk_id += 1  
+#                 documents.append(json_data)  
   
-    return documents  
+#     return documents  
   
 def should_index(job_request: JobRequest) -> bool:  
     return all([job_request.search_service_name, job_request.search_admin_key, job_request.search_index_name, job_request.search_api_version])  
