@@ -125,7 +125,7 @@ def find_all_page_numbers(text):
 			page_numbers.append(int(matches[0])-2)
 		for m in matches:
 			page_numbers.append(int(m)-1)
-		return page_numbers  
+		return list(set(page_numbers))  
 	else:  
 		return [0]  
 
@@ -498,6 +498,13 @@ def vectorize_by_markdown(merged_markdown: str, job_request: JobRequest, job_id:
                         find_pg = find_page_number(text)  
                         if find_pg is not None:  
                             pg_number = find_pg  
+                            if find_pg <= 1:
+                            	text = '||1||\n' +  text
+                            else: 
+                            	text = '||' + str(pg_number-1) + '||\n' +  text
+			else:
+                             text = '||1||\n' +  text
+			
                         json_data = {  
                             "doc_id": f"{job_id}-{chunk_id}",  
                             "chunk_id": chunk_id,  
@@ -510,6 +517,15 @@ def vectorize_by_markdown(merged_markdown: str, job_request: JobRequest, job_id:
                         chunk_id += 1  
                         documents.append(json_data)  
                 else:  
+                    if find_pg is not None:  
+                        pg_number = find_pg  
+                        if find_pg <= 1:
+                    		sub_section_content = '||1||\n' +  sub_section_content
+                        else: 
+                    		sub_section_content = '||' + str(pg_number-1) + '||\n' +  sub_section_content
+                    else:
+                         sub_section_content = '||1||\n' +  sub_section_content
+			
                     json_data = {  
                         "doc_id": f"{job_id}-{chunk_id}",  
                         "chunk_id": chunk_id,  
@@ -527,8 +543,8 @@ def vectorize_by_markdown(merged_markdown: str, job_request: JobRequest, job_id:
                 title = '# ' + s1.metadata['Header 1']  
   
             find_pg = find_page_number(section_content)  
-            if find_pg is not None:  
-                pg_number = find_pg  
+	    if find_pg is not None:  
+		pg_number = find_pg  
   
             token_count = len(encoding.encode(title + '\n' + section_content))  
             if token_count > max_chunk_len:  
@@ -539,6 +555,14 @@ def vectorize_by_markdown(merged_markdown: str, job_request: JobRequest, job_id:
                     find_pg = find_page_number(text)  
                     if find_pg is not None:  
                         pg_number = find_pg  
+                    	if find_pg <= 1:
+                    		text = '||1||\n' +  text
+                    	else: 
+                    		text = '||' + str(pg_number-1) + '||\n' +  text
+                    else:
+                         text = '||1||\n' +  text
+	    else:
+		 section_content = '||1||\n' +  section_content
                     json_data = {  
                         "doc_id": f"{job_id}-{chunk_id}",  
                         "chunk_id": chunk_id,  
