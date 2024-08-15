@@ -1269,6 +1269,22 @@ index_schema_template = {
         "compression": None
       }
     ],
+    "vectorizers": [
+      {
+        "name": "vector-vectorizer",
+        "kind": "azureOpenAI",
+        "azureOpenAIParameters": {
+          "resourceUri": "https://redacted.openai.azure.com/",
+          "deploymentId": "redacted",
+          "apiKey": "redacted",
+          "modelName": "experimental",
+          "authIdentity": None
+        },
+        "customWebApiParameters": None,
+        "aiServicesVisionParameters": None,
+        "amlParameters": None
+      }
+    ],
     "compressions": []
   }
 }
