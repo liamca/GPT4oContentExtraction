@@ -484,11 +484,12 @@ def vectorize_by_page(merged_markdown: str, markdown_dir: str, job_request: JobR
         print('Creating JSON document for: ', os.path.join(markdown_dir, f))  
         with open(os.path.join(markdown_dir, f), 'r') as f_in:  
             content = f_in.read()  
-            pg_number = find_page_number(content) or extract_numeric_value(f)  
+            pg_number = extract_numeric_value(f)  
+            content = '||' + str(pg_number-1) + '||\n' + content
+
             json_data = {  
                 "doc_id": f"{job_id}-{pg_number}",  
                 "chunk_id": int(pg_number),  
-                "pg_number": int(pg_number),  
                 "file_name": os.path.basename(job_request.url_file_to_process),  
                 "content": content,  
                 "vector": generate_embedding(content, job_request.openai_embedding_api_version, job_request.openai_embedding_api_base, job_request.openai_embedding_api_key, job_request.openai_embedding_model)  
