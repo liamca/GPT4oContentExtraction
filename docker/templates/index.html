@@ -5,7 +5,10 @@
     <link href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">  
     <link rel="stylesheet" href="style.css">
     <style>  
-	.rounded-pill {border-radius: 20px;}  
+	  .custom-message {  
+	    border-radius: 20px;  
+	    border-top-left-radius: 0; /* Make the top-left corner square */  
+	  }  
     </style>  
 </head>  
 <body>  
@@ -497,7 +500,7 @@
 
 		const userMessage = document.createElement('div');  
 		userMessage.textContent = `User: ${userInput}`;  
-		userMessage.classList.add('border', 'p-2', 'mb-2', 'bg-primary', 'text-white', 'rounded-pill'); // Add Bootstrap classes for styling  
+		userMessage.classList.add('border', 'p-2', 'mb-2', 'bg-primary', 'text-white', 'custom-message'); // Add Bootstrap classes and custom class  
 		chatBox.insertBefore(userMessage, chatBox.firstChild);  
 	  
 		// Add click event listener to links  
