@@ -806,7 +806,7 @@ async def chat(user_input: str = Form(...),
             search_result = ''  
             for result in result["value"]:  
                 base_url, chunk_id, pg_number = parse_doc_id(result['doc_id'] + '-0')  
-		result_content = result['content']
+                result_content = result['content']
                 pg_numbers = find_all_page_numbers(result_content)
                 # sas_urls = []
                 for pg in pg_numbers:
