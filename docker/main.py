@@ -686,7 +686,7 @@ def generate_answer(question, content, openai_gpt_api_base, openai_gpt_api_key, 
     Your response should be in Markdown format.
     Before each section of text there is a URL to an image separated by || that is the source for that information. 
     Whenever you use information from the source, always reference the source image immedicately above the text.
-    You should reference the image in the format [image_name.png](url)
+    You should reference the image in the format [image_name.png](url).
     For example, if the source content was:
 
      	||https://xyx.com/foo/img1.png?sv=123||
@@ -700,6 +700,7 @@ def generate_answer(question, content, openai_gpt_api_base, openai_gpt_api_key, 
     [img1.png](https://xyx.com/foo/img1.png?sv=123)
         
     It is really important that you reference the image URL above the text you used and not the image URL below it. 
+    After you reference the imageURL, remove anything from your response that is separated by ||
     Only answer the question using the source information provided.  
     Do not make up an answer.  
     """  
