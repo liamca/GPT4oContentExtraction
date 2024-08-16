@@ -680,7 +680,7 @@ def remove_between_pipes(s):
     # Use a regular expression to find and remove text between || and the || themselves  
     result = re.sub(r'\|\|.*?\|\|', '', s)  
     # Remove any extra spaces that might be left behind  
-    result = ' '.join(result.split())  
+    # result = ' '.join(result.split())  
     return result 
 	
 def generate_answer(question, content, openai_gpt_api_base, openai_gpt_api_key, openai_gpt_api_version, openai_gpt_model):  
