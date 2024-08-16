@@ -736,8 +736,7 @@ def generate_answer(question, content, openai_gpt_api_base, openai_gpt_api_key, 
                 stop=None,  
                 stream=False  
             )  
-            # Before returning, remove any of the images that are still listed between pipes
-            return remove_between_pipes(response.choices[0].message.content)  
+            return response.choices[0].message.content
         except openai.APIError as ex:  
             if str(ex.code) == "429":  
                 incremental_backoff = min(max_backoff, incremental_backoff * 1.5)  
@@ -843,6 +842,9 @@ async def chat(user_input: str = Form(...),
 		    
             print('SEARCH RESULTS:', search_result)  
             answer = generate_answer(user_input, search_result, openai_gpt_api_base, openai_gpt_api_key, openai_gpt_api_version, openai_gpt_model)  
+            # Sometimes GPT sends back the ||img|| - remove them manually
+            answer = remove_between_pipes(answer)	
+		
             print('ANSWER:', answer)  
         else:  
             answer = "No results found."  
