@@ -675,7 +675,14 @@ async def upload_files(
         sas_url = f"https://{blob_service_client.account_name}.blob.core.windows.net/{blob_storage_container}/{blob_name}?{sas_token}"  
         sas_urls.append(sas_url)  
     return {"files": sas_urls}  
-  
+
+def remove_between_pipes(s):  
+    # Use a regular expression to find and remove text between || and the || themselves  
+    result = re.sub(r'\|\|.*?\|\|', '', s)  
+    # Remove any extra spaces that might be left behind  
+    result = ' '.join(result.split())  
+    return result 
+	
 def generate_answer(question, content, openai_gpt_api_base, openai_gpt_api_key, openai_gpt_api_version, openai_gpt_model):  
     max_attempts = 6  
     max_backoff = 60  
@@ -700,7 +707,6 @@ def generate_answer(question, content, openai_gpt_api_base, openai_gpt_api_key, 
     [img1.png](https://xyx.com/foo/img1.png?sv=123)
         
     It is really important that you reference the image URL above the text you used and not the image URL below it. 
-    After you reference the imageURL, remove anything from your response that is separated by ||
     Only answer the question using the source information provided.  
     Do not make up an answer.  
     """  
@@ -728,7 +734,8 @@ def generate_answer(question, content, openai_gpt_api_base, openai_gpt_api_key, 
                 stop=None,  
                 stream=False  
             )  
-            return response.choices[0].message.content  
+            # Before returning, remove any of the images that are still listed between pipes
+            return remove_between_pipes(response.choices[0].message.content)  
         except openai.APIError as ex:  
             if str(ex.code) == "429":  
                 incremental_backoff = min(max_backoff, incremental_backoff * 1.5)  
