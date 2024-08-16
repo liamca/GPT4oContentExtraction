@@ -684,9 +684,20 @@ def generate_answer(question, content, openai_gpt_api_base, openai_gpt_api_key, 
     Use 'you' to refer to the individual asking the questions even if they ask with 'I'.  
     Sometimes the answer may be in a table.  
     Focus the response on the intent of the users question. For example, if they ask "Who is", aim to respond with information about "Who" as opposed to "How to".  
-    Each source has an array of URL's to images followed by a colon and then the source information.  
-    At the end of your response use markdown format to display links of the format [image_name.png](url) to all the source images for each source you used to answer the question.
-    If there were multiple image URL's provided, include all of them.
+    Before each section of text there is a URL to an image separated by || that is the source for that information. 
+    Your response should be in Markdown format.
+    Whenever you use information from the source, always reference the source image in the format ![image_name.png](url)
+    For example, if the source content was:
+
+     	||https://xyx.com/foo/img1.png?sv=123||
+        The captial of Canada is Ottawa
+	||https://xyx.com/foo/img2.png?sv=321||
+ 	The captital of USA is Washington, DC
+
+    And you used the source text "The captial of Canada is Ottawa", you would add as a source URL from above the text to the response:
+
+    ![img1.png](https://xyx.com/foo/img1.png?sv=123)
+        
     Only answer the question using the source information provided.  
     Do not make up an answer.  
     """  
@@ -795,8 +806,9 @@ async def chat(user_input: str = Form(...),
             search_result = ''  
             for result in result["value"]:  
                 base_url, chunk_id, pg_number = parse_doc_id(result['doc_id'] + '-0')  
-                pg_numbers = find_all_page_numbers(result['content'])
-                sas_urls = []
+		result_content = result['content']
+                pg_numbers = find_all_page_numbers(result_content)
+                # sas_urls = []
                 for pg in pg_numbers:
                     base_url, chunk_id, pg_number = parse_doc_id(result['doc_id'] + '-' + str(pg))  
                     blob_name = f'processed/{base_url}/images/{pg}.png'  
@@ -811,9 +823,12 @@ async def chat(user_input: str = Form(...),
                     )  
                     sas_url = f"https://{blob_storage_service_name}.blob.core.windows.net/{blob_storage_container}/{blob_name}?{sas_token}"  
                     print('SAS URL:', sas_url)  
-                    sas_urls.append(sas_url)
+                    result_content = result_content.replace('||' + str(pg) + '||', '||' + sas_url + '||') 
+                    # sas_urls.append(sas_url)
   
-                search_result += str(sas_urls) + ': ' + result['content'] + '\n\n'  
+                # search_result += str(sas_urls) + ': ' + result['content'] + '\n\n'  
+                search_result += result_content + '\n\n'  
+		    
             print('SEARCH RESULTS:', search_result)  
             answer = generate_answer(user_input, search_result, openai_gpt_api_base, openai_gpt_api_key, openai_gpt_api_version, openai_gpt_model)  
             print('ANSWER:', answer)  
