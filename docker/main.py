@@ -677,11 +677,13 @@ async def upload_files(
     return {"files": sas_urls}  
 
 def remove_between_pipes(s):  
-    # Use a regular expression to find and remove text between || and the || themselves  
-    result = re.sub(r'\|\|.*?\|\|', '', s)  
-    # Remove any extra spaces that might be left behind  
-    # result = ' '.join(result.split())  
-    return result 
+    # Split the string into lines  
+    lines = s.split('\n')  
+    # Filter out lines that start with ||  
+    filtered_lines = [line for line in lines if not line.strip().startswith('||')]  
+    # Join the remaining lines back into a single string  
+    result = '\n'.join(filtered_lines)  
+    return result  
 	
 def generate_answer(question, content, openai_gpt_api_base, openai_gpt_api_key, openai_gpt_api_version, openai_gpt_model):  
     max_attempts = 6  
@@ -690,6 +692,8 @@ def generate_answer(question, content, openai_gpt_api_base, openai_gpt_api_key, 
     You are an intelligent assistant.  
     Use 'you' to refer to the individual asking the questions even if they ask with 'I'.  
     Sometimes the answer may be in a table.  
+    Only answer the question using the source information provided.  
+    Do not make up an answer.  
     Your response should be in Markdown format.
     Before each section of text there is a URL to an image separated by || that is the source for that information. 
     Whenever you use information from the source, always reference the source image immedicately above the text.
@@ -706,9 +710,7 @@ def generate_answer(question, content, openai_gpt_api_base, openai_gpt_api_key, 
 
     [img1.png](https://xyx.com/foo/img1.png?sv=123)
         
-    It is really important that you reference the image URL above the text you used and not the image URL below it. 
-    Only answer the question using the source information provided.  
-    Do not make up an answer.  
+    It is really important that you reference the image URL ABOVE the text you used and NOT the image URL below the text. 
     """  
     user_prompt = question + "\nSources:\n" + content  
     gpt_client = AzureOpenAI(  
