@@ -15,7 +15,7 @@ import requests
 import pdfkit  
 import fitz  # PyMuPDF  
 from fastapi import FastAPI, BackgroundTasks, HTTPException, Request, Form, File, UploadFile  
-from fastapi.responses import HTMLResponse, JSONResponse  
+from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
 from fastapi.templating import Jinja2Templates  
 from pydantic import BaseModel  
 from azure.storage.blob import BlobServiceClient, BlobClient, ContainerClient, generate_blob_sas, BlobSasPermissions  
@@ -1105,6 +1105,14 @@ async def test_search(request: Request):
     except Exception as e:  
         print(f"An error occurred: {e}")  
         return {"status": "fail", "message": f"An error occurred: {e}"}  
+
+@app.get("/download/{filename}")  
+async def download_file(filename: str):  
+    file_path = os.path.join("files", filename)  
+    if os.path.isfile(file_path):  
+        return FileResponse(file_path, media_type='application/json', filename=filename)  
+    else:  
+        raise HTTPException(status_code=404, detail="File not found")  
 
 index_schema_template = {
   "name": "<redacted>",
