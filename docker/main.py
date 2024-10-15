@@ -1107,7 +1107,7 @@ async def test_search(request: Request):
         return {"status": "fail", "message": f"An error occurred: {e}"}  
 
 @app.get("/download/{filename}")  
-async def download_file(filename: str):  
+async def download_file_local(filename: str):  
     file_path = os.path.join("./files", os.path.basename(filename))
     print ('Downloading:', file_path)
     if os.path.isfile(file_path):  
