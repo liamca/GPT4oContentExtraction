@@ -1108,7 +1108,7 @@ async def test_search(request: Request):
 
 @app.get("/download/{filename}")  
 async def download_file(filename: str):  
-    file_path = os.path.join("files", os.path.basename(filename))
+    file_path = os.path.join("./files", os.path.basename(filename))
     print ('Downloading:', file_path)
     if os.path.isfile(file_path):  
         return FileResponse(file_path, media_type='application/json', filename=filename)  
