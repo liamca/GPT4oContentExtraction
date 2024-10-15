@@ -26,8 +26,8 @@ COPY templates/index.html templates/index.html
 COPY templates/style.css templates/style.css
 
 RUN mkdir -p files
-COPY files/schema_template.json templates/schema_template.json
-COPY files/settings_template.json templates/settings_template.json
+COPY files/schema_template.json files/schema_template.json
+COPY files/settings_template.json files/settings_template.json
 
 # Make port available
 EXPOSE 3100  
