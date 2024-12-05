@@ -13,7 +13,8 @@ from typing import Optional, Dict, List
 import httpx  
 import requests  
 import pdfkit  
-import fitz  # PyMuPDF  
+import fitz  # PyMuPDF
+import pdfkit
 from fastapi import FastAPI, BackgroundTasks, HTTPException, Request, Form, File, UploadFile  
 from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
 from fastapi.templating import Jinja2Templates  
@@ -211,7 +212,9 @@ def extract_pdf_pages_to_images(pdf_path, image_out_dir):
     pg_counter = 0  
     for page_number in range(len(pdf_document)):  
         page = pdf_document.load_page(page_number)  
-        image = page.get_pixmap()  
+	mat = pymupdf.Matrix(zoom_x, zoom_y)  # zoom factor 2 in each dimension
+        image = page.get_pixmap(matrix=mat)  # use 'mat' instead of the identity matrix
+        #image = page.get_pixmap()  
         image_out_file = os.path.join(image_out_dir, f'{page_number + 1}.png')  
         image.save(image_out_file)  
         if page_number % 100 == 0:  
