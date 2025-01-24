@@ -14,11 +14,22 @@ Within the updated container, there is a UX which is accessible from the base UR
 
 ![image](https://github.com/user-attachments/assets/f4459995-4f02-4a77-98d1-433c10db7c8f)
 
-## How to build the Container
+## How to build the Container Image
 
 ```code
 docker build -t doc2md .
 ```
+
+## How to Test Container Image Locally
+
+```code
+docker run -d -p 3100:3100 gpt4odemo
+```
+Validate it is running:
+```code
+docker ps
+```
+Using your IP address, open browser and go to: X.X.X.X:3100
 
 ## How to upload the container to Azure
 Create an Azure Container Registry 
