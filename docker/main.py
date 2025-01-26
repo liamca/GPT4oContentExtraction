@@ -12,8 +12,9 @@ from pathlib import Path
 from typing import Optional, Dict, List  
 import httpx  
 import requests  
-import pdfkit  
-import fitz  # PyMuPDF
+import pdfkit
+import fitz
+import pymupdf
 import pdfkit
 from fastapi import FastAPI, BackgroundTasks, HTTPException, Request, Form, File, UploadFile  
 from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
