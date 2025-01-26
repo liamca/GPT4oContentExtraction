@@ -31,6 +31,15 @@ docker ps
 ```
 Using your IP address, open browser and go to: X.X.X.X:3100
 
+If you wish to debug the container:
+```code
+docker run -it gpt4odemo /bin/bash
+```
+and within the container run:
+```code
+uvicorn main:app --host 0.0.0.0 --port 3100 --proxy-headers
+```
+
 ## How to upload the container to Azure
 Create an Azure Container Registry 
 
