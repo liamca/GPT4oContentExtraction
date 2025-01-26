@@ -33,7 +33,7 @@ Using your IP address, open browser and go to: X.X.X.X:3100
 
 If you wish to debug the container:
 ```code
-docker run -it gpt4odemo /bin/bash
+docker run -p 3100:3100 -it gpt4odemo /bin/bash
 ```
 and within the container run:
 ```code
