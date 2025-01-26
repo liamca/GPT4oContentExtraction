@@ -212,7 +212,9 @@ def extract_pdf_pages_to_images(pdf_path, image_out_dir):
     pdf_document = fitz.open(pdf_path)  
     pg_counter = 0  
     for page_number in range(len(pdf_document)):  
-        page = pdf_document.load_page(page_number)  
+        page = pdf_document.load_page(page_number)
+        zoom_x = 2.0  # horizontal zoom
+        zoom_y = 2.0  # vertical zoom
         mat = pymupdf.Matrix(zoom_x, zoom_y)  # zoom factor 2 in each dimension
         image = page.get_pixmap(matrix=mat)  # use 'mat' instead of the identity matrix
         #image = page.get_pixmap()  
