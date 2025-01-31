@@ -20,12 +20,12 @@ from fastapi import FastAPI, BackgroundTasks, HTTPException, Request, Form, File
 from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
 from fastapi.templating import Jinja2Templates  
 from pydantic import BaseModel  
-from azure.storage.blob import BlobServiceClient, BlobClient, ContainerClient, generate_blob_sas, BlobSasPermissions  
+from azure.storage.blob import BlobServiceClient, generate_blob_sas, generate_account_sas, BlobSasPermissions, AccountSasPermissions, ResourceTypes  
 from azure.core.exceptions import ResourceNotFoundError, HttpResponseError  
 from openai import AzureOpenAI, OpenAIError  
 from langchain.text_splitter import TokenTextSplitter, MarkdownHeaderTextSplitter, RecursiveCharacterTextSplitter  
 import tiktoken  
-
+from time import sleep
 
 
 # Initialize the tokenizer  
@@ -100,6 +100,7 @@ class JobRequest(BaseModel):
     search_api_version: Optional[str] = None  
     chunk_type: Optional[str] = None  
     is_html: Optional[bool] = False  # deprecated and no longer used  
+    image_sas_token: Optional[str] = None 
   
 class JobStatus(BaseModel):  
     job_id: str  
@@ -327,6 +328,15 @@ def background_task(job_id: str, job_request: JobRequest):
     try:  
         job_info = initialize_job(job_id, job_request)  
         blob_service_client, blob_container_client = setup_azure_connections(job_request)  
+
+        #create a SAS token that is valid for the entire container and gives read access for 1 week:
+        job_request.image_sas_token = generate_account_sas(
+            account_name=job_request.blob_storage_service_name,
+            account_key=job_request.blob_storage_service_api_key,
+            resource_types=ResourceTypes(object=True),
+            permission=AccountSasPermissions(read=True),
+            expiry=datetime.utcnow() + timedelta(weeks=1)
+        )
         job_dir, doc_dir, pdf_dir, image_dir = setup_directories(job_id)  
   
         job_info, download_file_name = download_and_convert_file(job_request, job_info, blob_container_client, job_dir, doc_dir, pdf_dir)  
@@ -487,12 +497,16 @@ def vectorize_by_page(merged_markdown: str, markdown_dir: str, job_request: JobR
             content = f_in.read()  
             pg_number = extract_numeric_value(f)  
             content = '||' + str(pg_number) + '||\n' + content
+            #Randy: Adding the URL to the JSON
+            url= f"https://{job_request.blob_storage_service_name}.blob.core.windows.net/{job_request.blob_storage_container}/processed/{job_id}/images/{pg_number}.png?{job_request.image_sas_token}"
+            print('Creating JSON document for chunk_id: ', pg_number, 'pg_number:', pg_number, 'url:', url)
 
             json_data = {  
                 "doc_id": f"{job_id}-{pg_number}",  
                 "chunk_id": int(pg_number),  
                 "file_name": os.path.basename(job_request.url_file_to_process),  
                 "content": content,  
+                "url": url,
                 "vector": generate_embedding(content, job_request.openai_embedding_api_version, job_request.openai_embedding_api_base, job_request.openai_embedding_api_key, job_request.openai_embedding_model)  
             }  
             documents.append(json_data)  
@@ -519,6 +533,10 @@ def vectorize_by_markdown(merged_markdown: str, job_request: JobRequest, job_id:
             if get_pg_number != None:
                 pg_number = get_pg_number
         text = '||' + str(pg_number-1) + '||\n' + last_heading + '\n' + text
+        #Randy: Adding the URL to the JSON
+        url= f"https://{job_request.blob_storage_service_name}.blob.core.windows.net/{job_request.blob_storage_container}/processed/{job_id}/images/{pg_number}.png?{job_request.image_sas_token}"
+        print('RT -Creating JSON document for chunk_id: ', pg_number, 'pg_number:', pg_number, 'url:', url)
+
         
         json_data = {  
             "doc_id": f"{job_id}-{chunk_id}",  
@@ -526,6 +544,7 @@ def vectorize_by_markdown(merged_markdown: str, job_request: JobRequest, job_id:
             "file_name": os.path.basename(job_request.url_file_to_process),  
             "content": text,  
             "title": last_heading,  
+            "url": url,
             "vector": generate_embedding(str(text), job_request.openai_embedding_api_version, job_request.openai_embedding_api_base, job_request.openai_embedding_api_key, job_request.openai_embedding_model)  
         }  
         chunk_id += 1  
@@ -650,8 +669,9 @@ async def job_status(job_status: JobStatus):
     connection_string = f"DefaultEndpointsProtocol=https;AccountName={job_status.blob_storage_service_name};AccountKey={job_status.blob_storage_service_api_key};EndpointSuffix=core.windows.net"  
     blob_service_client = BlobServiceClient.from_connection_string(connection_string)  
     blob_name = os.path.join('processed', job_id, 'status.json')  
-    print(blob_name)  
+    print(blob_name) 
     blob_client = blob_service_client.get_blob_client(container=job_status.blob_storage_container, blob=blob_name)  
+    sleep(2) #addressing race condition
     job_info = json.loads(blob_client.download_blob().readall())  
     return job_info  
   
@@ -802,7 +822,7 @@ async def chat(user_input: str = Form(...),
     payload = {  
         "search": user_input,  
         "searchFields": "content",  
-        "select": "doc_id, pg_number, content",  
+        "select": "doc_id, pg_number, content, url", 
         "top": 5  
     }  
   
